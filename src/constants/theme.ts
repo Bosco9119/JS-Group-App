@@ -1,6 +1,5 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Brand palette aligned to the JS-Group website (blue primary).
  */
 
 import '@/global.css';
@@ -9,32 +8,65 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#3F3F3F',
+    background: '#F8F9FC',
+    backgroundElement: '#FFFFFF',
+    backgroundSelected: '#E8F0FE',
+    textSecondary: '#6B7280',
+    accent: '#3B82F6',
+    accentMuted: '#1E3A8A',
+    danger: '#EF4444',
+    success: '#166534',
+    warning: '#854D0E',
+    info: '#3B82F6',
+    border: '#E5E7EB',
+    primaryForeground: '#FFFFFF',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#E8E8E8',
+    background: '#1C1C1C',
+    backgroundElement: '#2A2A2A',
+    backgroundSelected: '#222222',
+    textSecondary: '#A3A3A3',
+    accent: '#3B82F6',
+    accentMuted: '#1E3A8A',
+    danger: '#EF4444',
+    success: '#86EFAC',
+    warning: '#FDE047',
+    info: '#BFDBFE',
+    border: '#454545',
+    primaryForeground: '#FFFFFF',
   },
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+export const Radius = 6;
+
+export const StatusColors = {
+  light: {
+    planned: { bg: '#FEF9C3', fg: '#854D0E' },
+    inProgress: { bg: '#FEF9C3', fg: '#854D0E' },
+    completed: { bg: '#DCFCE7', fg: '#166534' },
+    cancelled: { bg: '#FEE2E2', fg: '#991B1B' },
+    accent: { bg: '#E8F0FE', fg: '#1E3A8A' },
+    neutral: { bg: '#F1F2F5', fg: '#6B7280' },
+  },
+  dark: {
+    planned: { bg: '#713F12', fg: '#FDE047' },
+    inProgress: { bg: '#713F12', fg: '#FDE047' },
+    completed: { bg: '#14532D', fg: '#86EFAC' },
+    cancelled: { bg: '#7F1D1D', fg: '#FCA5A5' },
+    accent: { bg: '#1E3A8A', fg: '#BFDBFE' },
+    neutral: { bg: '#222222', fg: '#A3A3A3' },
+  },
+} as const;
+
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {
