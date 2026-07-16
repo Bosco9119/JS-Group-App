@@ -1,48 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-
-import { getOnlinePreference, setOnlinePreference } from '@/lib/preferences';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 type OnlineContextValue = {
   ready: boolean;
   online: boolean;
-  setOnline: (value: boolean) => Promise<void>;
-  toggleOnline: () => Promise<void>;
 };
 
 const OnlineContext = createContext<OnlineContextValue | null>(null);
 
+/** Drivers stay online while signed in — no manual offline toggle. */
 export function OnlineProvider({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(false);
-  const [online, setOnlineState] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const value = await getOnlinePreference();
-      if (!cancelled) {
-        setOnlineState(value);
-        setReady(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const setOnline = useCallback(async (value: boolean) => {
-    setOnlineState(value);
-    await setOnlinePreference(value);
-  }, []);
-
-  const toggleOnline = useCallback(async () => {
-    await setOnline(!online);
-  }, [online, setOnline]);
-
-  const value = useMemo(
-    () => ({ ready, online, setOnline, toggleOnline }),
-    [ready, online, setOnline, toggleOnline],
-  );
-
+  const value = useMemo(() => ({ ready: true, online: true }), []);
   return <OnlineContext.Provider value={value}>{children}</OnlineContext.Provider>;
 }
 

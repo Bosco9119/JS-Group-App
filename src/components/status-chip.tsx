@@ -42,23 +42,27 @@ export function StatusChip({ label, tone = 'neutral' }: Props) {
   );
 }
 
-export function jobTypeTone(jobType?: string | null): Tone {
-  switch (jobType) {
-    case 'delivery':
-      return 'success';
-    case 'rental_return':
-      return 'accent';
-    case 'warehouse_transfer':
-      return 'warning';
-    default:
-      return 'accent';
-  }
+/** Job type chips stay muted — color via label text, not rainbow pills. */
+export function jobTypeTone(_jobType?: string | null): Tone {
+  return 'neutral';
 }
 
+/** Only terminal success — not arrived (that is still in progress). */
+export function isStopCompleted(status?: string | null): boolean {
+  return status === 'completed';
+}
+
+export function isStopFinished(status?: string | null): boolean {
+  return status === 'completed' || status === 'skipped' || status === 'failed';
+}
+
+export function isStopInProgress(status?: string | null): boolean {
+  return status === 'in_progress' || status === 'arrived' || status === 'en_route';
+}
+
+/** Prefer grey chips; keep a quiet mark for current work and danger for failures. */
 export function statusTone(status?: string | null): Tone {
   switch (status) {
-    case 'completed':
-      return 'success';
     case 'in_progress':
     case 'arrived':
     case 'en_route':
@@ -66,9 +70,6 @@ export function statusTone(status?: string | null): Tone {
     case 'failed':
     case 'cancelled':
       return 'danger';
-    case 'planned':
-    case 'pending':
-      return 'warning';
     default:
       return 'neutral';
   }

@@ -10,14 +10,13 @@ import {
 
 import { AppHeader } from '@/components/app-header';
 import { MetricTile, TripCard } from '@/components/job-cards';
-import { StatusChip, statusTone } from '@/components/status-chip';
 import { ThemedText } from '@/components/themed-text';
 import { EmptyState, ErrorBanner, LoadingState } from '@/components/ui/states';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useAppTranslation } from '@/context/locale';
-import { useOnline } from '@/context/online';
 import { useTheme } from '@/hooks/use-theme';
+import { statusLabel } from '@/i18n';
 import { fetchTrips } from '@/lib/driver-api';
 import { formatTimeRange, greetingKey } from '@/lib/format';
 import {
@@ -33,7 +32,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const { t } = useAppTranslation();
   const { driver } = useAuth();
-  const { online } = useOnline();
   const [trips, setTrips] = useState<DriverTripSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -66,6 +64,7 @@ export default function HomeScreen() {
   const nextTrip = useMemo(() => nextActionableTrip(trips), [trips]);
   const nextStop = useMemo(() => nextPendingStop(nextTrip), [nextTrip]);
   const greeting = t(`home.greeting.${greetingKey()}`);
+  const tripDone = nextTrip?.status === 'completed';
 
   if (loading) {
     return (
@@ -91,33 +90,26 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />}
       >
-        <View style={styles.greetingRow}>
-          <View style={{ flex: 1 }}>
-            <ThemedText type="subtitle" style={styles.greeting}>
-              {greeting}, {driver?.name ?? 'Driver'}
-            </ThemedText>
-          </View>
-          <StatusChip
-            label={online ? t('nav.online') : t('nav.offline')}
-            tone={online ? 'success' : 'neutral'}
-          />
-        </View>
+        <ThemedText type="subtitle" style={styles.greeting}>
+          {greeting}, {driver?.name ?? 'Driver'}
+        </ThemedText>
 
         {error ? <ErrorBanner message={error} /> : null}
 
         <ThemedText type="smallBold">{t('home.overview')}</ThemedText>
         <View style={styles.metrics}>
-          <MetricTile label={t('home.assigned')} value={metrics.assigned} />
-          <MetricTile label={t('home.completed')} value={metrics.completed} />
           <MetricTile label={t('home.inProgress')} value={metrics.inProgress} />
-          <MetricTile label={t('home.distance')} value="—" />
+          <MetricTile label={t('home.completed')} value={metrics.completed} />
+          <MetricTile label={t('home.assigned')} value={metrics.assigned} />
         </View>
 
         {nextTrip ? (
           <View style={styles.section}>
-            <ThemedText type="smallBold">{t('home.nextJob')}</ThemedText>
+            <ThemedText type="smallBold">
+              {tripDone ? t('home.todayTrip') : t('home.nextJob')}
+            </ThemedText>
             <TripCard trip={nextTrip} onPress={() => router.push(`/(app)/trips/${nextTrip.id}`)} />
-            {nextStop ? (
+            {!tripDone && nextStop ? (
               <View
                 style={[
                   styles.nextStop,
@@ -125,14 +117,21 @@ export default function HomeScreen() {
                 ]}
               >
                 <ThemedText type="smallBold">{t('home.nextStop')}</ThemedText>
-                <ThemedText type="small">{nextStop.job?.customer_name ?? nextStop.stop_type_label}</ThemedText>
-                <ThemedText themeColor="textSecondary" type="small">
+                <ThemedText type="small">
+                  {nextStop.job?.customer_name ?? nextStop.stop_type_label}
+                </ThemedText>
+                <ThemedText themeColor="textSecondary" type="small" numberOfLines={2}>
                   {nextStop.job?.address_text ?? '—'}
                 </ThemedText>
                 <ThemedText themeColor="textSecondary" type="small">
                   {formatTimeRange(nextTrip.planned_start, nextTrip.planned_end)}
                 </ThemedText>
               </View>
+            ) : null}
+            {tripDone ? (
+              <ThemedText themeColor="textSecondary" type="small">
+                {t('home.allStopsDone')}
+              </ThemedText>
             ) : null}
           </View>
         ) : (
@@ -141,23 +140,29 @@ export default function HomeScreen() {
 
         {nextTrip?.stops?.length ? (
           <View style={styles.section}>
-            <ThemedText type="smallBold">{t('home.upcomingStops')}</ThemedText>
+            <ThemedText type="smallBold">
+              {tripDone ? t('home.stops') : t('home.upcomingStops')}
+            </ThemedText>
             {nextTrip.stops.slice(0, 4).map((stop) => (
               <Pressable
                 key={stop.id}
-                onPress={() => {
-                  if (nextTrip.status !== 'in_progress') return;
-                  router.push(`/(app)/stops/${stop.id}?tripId=${nextTrip.id}`);
-                }}
-                style={[styles.timelineItem, { borderLeftColor: theme.accent }]}
+                onPress={() => router.push(`/(app)/stops/${stop.id}?tripId=${nextTrip.id}`)}
+                style={[styles.timelineItem, { borderLeftColor: theme.border }]}
               >
-                <ThemedText type="smallBold">
-                  #{stop.sequence} · {stop.job?.job_no ?? stop.stop_type_label}
+                <View style={styles.timelineRow}>
+                  <ThemedText type="smallBold" style={{ flex: 1 }}>
+                    #{stop.sequence} · {stop.job?.job_no ?? stop.stop_type_label}
+                  </ThemedText>
+                  <ThemedText themeColor="textSecondary" type="small">
+                    {statusLabel(t, stop.status, stop.status_label)}
+                  </ThemedText>
+                </View>
+                {stop.job?.customer_name ? (
+                  <ThemedText type="small">{stop.job.customer_name}</ThemedText>
+                ) : null}
+                <ThemedText themeColor="textSecondary" type="small" numberOfLines={2}>
+                  {stop.job?.address_text ?? '—'}
                 </ThemedText>
-                <ThemedText themeColor="textSecondary" type="small">
-                  {stop.job?.address_text ?? stop.status_label}
-                </ThemedText>
-                <StatusChip label={stop.status_label} tone={statusTone(stop.status)} />
               </Pressable>
             ))}
           </View>
@@ -173,11 +178,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingBottom: Spacing.six,
   },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
   greeting: { fontSize: 22, lineHeight: 28 },
   metrics: {
     flexDirection: 'row',
@@ -192,9 +192,14 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
   },
   timelineItem: {
-    borderLeftWidth: 3,
+    borderLeftWidth: 2,
     paddingLeft: Spacing.three,
-    gap: Spacing.one,
+    gap: 2,
     marginBottom: Spacing.two,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
 });

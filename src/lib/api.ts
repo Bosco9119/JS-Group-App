@@ -1,3 +1,6 @@
+import { fetch as expoFetch } from 'expo/fetch';
+import { File as ExpoFile } from 'expo-file-system';
+import * as LegacyFS from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 
 import { API_BASE_URL } from '@/lib/config';
@@ -83,6 +86,14 @@ async function authHeaders(extra?: HeadersInit): Promise<Headers> {
   return headers;
 }
 
+function headersToRecord(headers: Headers): Record<string, string> {
+  const record: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    record[key] = value;
+  });
+  return record;
+}
+
 export async function apiJson<T>(
   path: string,
   options: RequestInit & { json?: unknown } = {},
@@ -99,6 +110,10 @@ export async function apiJson<T>(
     body: json !== undefined ? JSON.stringify(json) : rest.body,
   });
 
+  if (__DEV__) {
+    console.log('[api]', rest.method ?? 'GET', path, '→', response.status);
+  }
+
   return handleResponse<T>(response);
 }
 
@@ -110,13 +125,18 @@ export async function apiMultipart<T>(
   const headers = await authHeaders();
   // Let fetch set multipart boundary — do not set Content-Type manually.
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  // Expo SDK 53+ requires expo/fetch for FormData file parts (expo-file-system File).
+  const response = await expoFetch(`${API_BASE_URL}${path}`, {
     method,
-    headers,
+    headers: headersToRecord(headers),
     body: formData,
   });
 
-  return handleResponse<T>(response);
+  if (__DEV__) {
+    console.log('[api]', method, path, '→', response.status);
+  }
+
+  return handleResponse<T>(response as unknown as Response);
 }
 
 function normalizeMimeType(mimeType: string | null | undefined, fileName: string): string {
@@ -153,9 +173,22 @@ function normalizeFileName(name: string, mimeType: string): string {
   return `${base}.${extension}`;
 }
 
+/** Copy picker/content URIs into cache as a real file:// path for Expo File uploads. */
+async function toCacheFileUri(uri: string, fileName: string): Promise<string> {
+  const cacheDir = LegacyFS.cacheDirectory;
+  if (!cacheDir) {
+    throw new Error('Cache directory is unavailable.');
+  }
+
+  const dest = `${cacheDir}upload-${Date.now()}-${fileName}`;
+  await LegacyFS.copyAsync({ from: uri, to: dest });
+  return dest;
+}
+
 /**
  * Append an image so Laravel receives a real uploaded file.
- * Web needs Blob/File; React Native uses the { uri, name, type } FormData shape.
+ * Native: expo-file-system File + expo/fetch (RN {uri,name,type} FormData is unsupported).
+ * Web: Blob/File via standard fetch.
  */
 export async function appendImage(formData: FormData, field: string, image: LocalImage) {
   const mimeType = normalizeMimeType(image.mimeType, image.name);
@@ -166,16 +199,14 @@ export async function appendImage(formData: FormData, field: string, image: Loca
     const blob = await response.blob();
     const type = normalizeMimeType(blob.type || mimeType, fileName);
     const file =
-      typeof File !== 'undefined'
-        ? new File([blob], fileName, { type })
+      typeof globalThis.File !== 'undefined'
+        ? new globalThis.File([blob], fileName, { type })
         : blob;
     formData.append(field, file, fileName);
     return;
   }
 
-  formData.append(field, {
-    uri: image.uri,
-    name: fileName,
-    type: mimeType,
-  } as unknown as Blob);
+  const localUri = await toCacheFileUri(image.uri, fileName);
+  const file = new ExpoFile(localUri);
+  formData.append(field, file);
 }

@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, StyleSheet, View } from 'react-native';
 import SignatureCanvas, { type SignatureViewRef } from 'react-native-signature-canvas';
 
@@ -54,15 +54,43 @@ export function SignaturePadModal({ visible, onCancel, onSave }: Props) {
   const ref = useRef<SignatureViewRef>(null);
   const [saving, setSaving] = useState(false);
   const [emptyError, setEmptyError] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(false);
+  const [session, setSession] = useState(0);
+  const [padReady, setPadReady] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setEmptyError(false);
+      setHasDrawn(false);
+      setSaving(false);
+      setPadReady(false);
+      setSession((value) => value + 1);
+      const timer = setTimeout(() => setPadReady(true), 80);
+      return () => clearTimeout(timer);
+    }
+    setPadReady(false);
+  }, [visible]);
 
   const webStyle = `
-    .m-signature-pad { box-shadow: none; border: none; margin: 0; }
-    .m-signature-pad--body { border: none; }
+    .m-signature-pad { box-shadow: none; border: none; margin: 0; width: 100%; height: 100%; }
+    .m-signature-pad--body { border: none; width: 100%; height: 100%; }
+    .m-signature-pad--body canvas { width: 100% !important; height: 100% !important; }
     .m-signature-pad--footer { display: none; margin: 0; }
-    body,html { height: 100%; background: ${theme.backgroundElement}; }
+    body,html {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #ffffff;
+    }
   `;
 
   async function handleOK(signature: string) {
+    if (!signature || signature.length < 40) {
+      setEmptyError(true);
+      return;
+    }
     setSaving(true);
     setEmptyError(false);
     try {
@@ -77,6 +105,7 @@ export function SignaturePadModal({ visible, onCancel, onSave }: Props) {
 
   function handleEmpty() {
     setEmptyError(true);
+    setSaving(false);
   }
 
   return (
@@ -92,22 +121,38 @@ export function SignaturePadModal({ visible, onCancel, onSave }: Props) {
         <View
           style={[
             styles.pad,
-            { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+            { backgroundColor: '#ffffff', borderColor: theme.border },
           ]}
         >
-          <SignatureCanvas
-            ref={ref}
-            onOK={(sig) => void handleOK(sig)}
-            onEmpty={handleEmpty}
-            autoClear={false}
-            imageType="image/png"
-            trimWhitespace
-            penColor={theme.text}
-            backgroundColor={theme.backgroundElement}
-            webStyle={webStyle}
-            style={styles.canvas}
-            androidLayerType="hardware"
-          />
+          {visible && padReady ? (
+            <SignatureCanvas
+              key={`sig-${session}`}
+              ref={ref}
+              onOK={(sig) => void handleOK(sig)}
+              onEmpty={handleEmpty}
+              onBegin={() => {
+                setEmptyError(false);
+                setHasDrawn(true);
+              }}
+              autoClear={false}
+              imageType="image/png"
+              trimWhitespace={false}
+              penColor="#111111"
+              backgroundColor="#ffffff"
+              webStyle={webStyle}
+              style={styles.canvas}
+              androidLayerType="software"
+              webviewProps={{
+                androidLayerType: 'software',
+                androidHardwareAccelerationDisabled: true,
+                nestedScrollEnabled: true,
+                scrollEnabled: false,
+                showsHorizontalScrollIndicator: false,
+                showsVerticalScrollIndicator: false,
+                overScrollMode: 'never',
+              }}
+            />
+          ) : null}
         </View>
 
         {emptyError ? (
@@ -122,6 +167,7 @@ export function SignaturePadModal({ visible, onCancel, onSave }: Props) {
             variant="secondary"
             onPress={() => {
               setEmptyError(false);
+              setHasDrawn(false);
               ref.current?.clearSignature();
             }}
           />
@@ -129,6 +175,7 @@ export function SignaturePadModal({ visible, onCancel, onSave }: Props) {
           <Button
             title={t('stops.useSignature')}
             loading={saving}
+            disabled={!hasDrawn || saving}
             onPress={() => {
               setEmptyError(false);
               ref.current?.readSignature();
@@ -155,7 +202,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius,
     overflow: 'hidden',
-    minHeight: 240,
+    minHeight: 280,
   },
   canvas: {
     flex: 1,

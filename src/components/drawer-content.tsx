@@ -1,17 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { DrawerContentScrollView } from 'expo-router/drawer';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useAppTranslation } from '@/context/locale';
-import { useOnline } from '@/context/online';
 import { useTheme } from '@/hooks/use-theme';
-import { fetchTrips } from '@/lib/driver-api';
-import { initialsFromName, vehicleLabel } from '@/lib/format';
+import { initialsFromName } from '@/lib/format';
 
 type Item = {
   key: string;
@@ -26,30 +23,8 @@ export function AppDrawerContent(props: any) {
   const router = useRouter();
   const { t } = useAppTranslation();
   const { driver, user, logout } = useAuth();
-  const { online, setOnline } = useOnline();
-  const [vehicle, setVehicle] = useState('—');
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const trips = await fetchTrips();
-        if (cancelled) return;
-        const withVehicle = trips.find((trip) => trip.vehicle);
-        setVehicle(vehicleLabel(withVehicle?.vehicle ?? null));
-      } catch {
-        if (!cancelled) setVehicle('—');
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const items: Item[] = [
-    { key: 'home', label: t('nav.home'), icon: 'home-outline', href: '/(app)/(tabs)/' },
-    { key: 'jobs', label: t('nav.jobs'), icon: 'briefcase-outline', href: '/(app)/(tabs)/jobs' },
-    { key: 'map', label: t('nav.map'), icon: 'map-outline', href: '/(app)/(tabs)/map' },
     { key: 'schedule', label: t('nav.schedule'), icon: 'calendar-outline', href: '/(app)/schedule' },
     {
       key: 'vehicle',
@@ -58,12 +33,6 @@ export function AppDrawerContent(props: any) {
       href: '/(app)/vehicle-check',
     },
     { key: 'docs', label: t('nav.documents'), icon: 'document-text-outline', href: '/(app)/documents' },
-    {
-      key: 'notifications',
-      label: t('nav.notifications'),
-      icon: 'notifications-outline',
-      href: '/(app)/(tabs)/notifications',
-    },
     { key: 'reports', label: t('nav.reports'), icon: 'bar-chart-outline', href: '/(app)/reports' },
     { key: 'settings', label: t('nav.settings'), icon: 'settings-outline', href: '/(app)/settings' },
     { key: 'help', label: t('nav.help'), icon: 'help-circle-outline', href: '/(app)/help' },
@@ -84,30 +53,6 @@ export function AppDrawerContent(props: any) {
           <ThemedText style={styles.avatarText}>{initialsFromName(driver?.name ?? user?.name)}</ThemedText>
         </View>
         <ThemedText type="smallBold">{driver?.name ?? user?.name ?? 'Driver'}</ThemedText>
-        <ThemedText themeColor="textSecondary" type="small">
-          {vehicle}
-        </ThemedText>
-        <View style={styles.onlineRow}>
-          <View
-            style={[
-              styles.onlinePill,
-              { backgroundColor: online ? theme.backgroundSelected : theme.border },
-            ]}
-          >
-            <View
-              style={[styles.dot, { backgroundColor: online ? theme.success : theme.textSecondary }]}
-            />
-            <ThemedText type="small" style={{ color: online ? theme.accent : theme.textSecondary }}>
-              {online ? t('nav.online') : t('nav.offline')}
-            </ThemedText>
-          </View>
-          <Switch
-            value={online}
-            onValueChange={(value) => void setOnline(value)}
-            trackColor={{ false: theme.border, true: theme.accentMuted }}
-            thumbColor="#fff"
-          />
-        </View>
       </View>
 
       <View style={styles.menu}>
@@ -164,21 +109,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   avatarText: { color: '#fff', fontWeight: '700', fontSize: 18 },
-  onlineRow: {
-    marginTop: Spacing.two,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  onlinePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    borderRadius: 999,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 4,
-  },
-  dot: { width: 8, height: 8, borderRadius: 4 },
   menu: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.two },
   menuItem: {
     flexDirection: 'row',

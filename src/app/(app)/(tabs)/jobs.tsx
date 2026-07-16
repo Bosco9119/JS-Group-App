@@ -102,7 +102,16 @@ export default function JobsScreen() {
         >
           {error ? <ErrorBanner message={error} /> : null}
           {filtered.length === 0 ? (
-            <EmptyState title={t('trips.emptyTitle')} message={t('trips.emptyMessage')} />
+            <EmptyState
+              title={
+                filter === 'completed' ? t('trips.emptyCompletedTitle') : t('trips.emptyTitle')
+              }
+              message={
+                filter === 'completed'
+                  ? t('trips.emptyCompletedMessage')
+                  : t('trips.emptyMessage')
+              }
+            />
           ) : (
             filtered.map((trip) => (
               <TripCard

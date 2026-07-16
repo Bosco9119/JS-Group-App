@@ -22,6 +22,13 @@ export type VehicleSummary = {
   model: string | null;
 };
 
+export type JobLineItem = {
+  sku?: string | null;
+  name: string;
+  qty: number | string;
+  uom?: string | null;
+};
+
 export type JobSummary = {
   id: number;
   job_no: string;
@@ -37,6 +44,11 @@ export type JobSummary = {
   special_instructions: string | null;
   started_at: string | null;
   completed_at: string | null;
+  /** Optional richer fields — render when API provides them. */
+  delivery_order_nos?: string[] | null;
+  line_items?: JobLineItem[] | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export type TripStopSummary = {
@@ -50,6 +62,28 @@ export type TripStopSummary = {
   actual_arrival: string | null;
   completed_at: string | null;
   job: JobSummary | null;
+};
+
+export type ChecklistItem = {
+  key: string;
+  label: string;
+  passed: boolean | null;
+  notes: string | null;
+};
+
+export type VehicleChecklist = {
+  passed: boolean | null;
+  checked_at: string | null;
+  checked_by_driver_id: number | null;
+  items: ChecklistItem[];
+  photo_urls: string[];
+};
+
+export type ChecklistItemInput = {
+  key: string;
+  label: string;
+  passed: boolean;
+  notes?: string | null;
 };
 
 export type DriverTripSummary = {
@@ -71,6 +105,7 @@ export type DriverTripSummary = {
   can_clock_in: boolean;
   all_stops_done: boolean;
   can_clock_out: boolean;
+  checklist?: VehicleChecklist | null;
   stops?: TripStopSummary[];
 };
 

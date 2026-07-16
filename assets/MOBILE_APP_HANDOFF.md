@@ -3,6 +3,8 @@
 > Copy this entire document into another Cursor project as the agent prompt when building the driver mobile client.
 >
 > Scope: **mobile client only** against **this** JS-Group Laravel backend (`/api/v1`). Do **not** invent self-registration.
+>
+> **Pre-trip checklist API is live** — see **“Pre-trip checklist”** below for screens, payloads, and Start Trip gates.
 
 You are building a **driver-facing mobile client** that consumes the **existing** JS-Group Laravel backend API at `/api/v1`.
 
@@ -33,23 +35,23 @@ You are building a **driver-facing mobile client** that consumes the **existing*
 1. **Login screen** — email + password only. Store token securely. No “Create account”.
 2. **Session** — call `GET /auth/me` on launch if token exists; logout clears local token + `POST /auth/logout`.
 3. **Today’s trip inbox** — `GET /transport/trips` (own trips: today’s planned/in_progress + any open in_progress overnight).
-4. **Trip detail** — `GET /transport/trips/{driverTrip}` (ordered stops + job address/customer summary).
-5. **Start trip** — `POST /transport/trips/{driverTrip}/clock-in` (`planned` → `in_progress`).
-6. **Arrive at stop** — `POST /transport/stops/{tripStop}/clock-in` (marks stop arrived; job → `in_progress`).
-7. **Complete stop / POD** — `POST /transport/stops/{tripStop}/complete` with **at least 1 photo** (multipart). Optional signature image, received-by name, notes, geo, `client_uuid`.
-8. **End trip** — when all stops are done, show dialog → `POST /transport/trips/{driverTrip}/clock-out` (`in_progress` → `completed`).
-9. **Proof gallery for a job** — list / upload / delete completion-proof photos on a transport job.
+4. **Trip detail** — `GET /transport/trips/{driverTrip}` (ordered stops + job summary + nested `checklist`).
+5. **Pre-trip checklist** — show/update items + optional photos; **all items must pass** before Start Trip (`can_clock_in` is false until then).
+6. **Start trip** — `POST /transport/trips/{driverTrip}/clock-in` only after checklist passed (`422` otherwise).
+7. **Arrive at stop** — `POST /transport/stops/{tripStop}/clock-in` (marks stop arrived; job → `in_progress`).
+8. **Complete stop / POD** — `POST /transport/stops/{tripStop}/complete` with **at least 1 photo** (multipart). Optional signature image, received-by name, notes, geo, `client_uuid`.
+9. **End trip** — when all stops are done, show dialog → `POST /transport/trips/{driverTrip}/clock-out` (`in_progress` → `completed`).
+10. **Proof gallery for a job** — list / upload / delete completion-proof photos on a transport job.
 
 ### Blocked / incomplete without new backend work (document as gaps; stub UI only if needed)
 
 | Driver need | Status |
 |---|---|
-| Pre-trip vehicle checklist | **Missing API** — admin only |
 | Push / assignment requests / dynamic insert acknowledge | **Missing API** |
 | Helper pairing, vehicle picker | **Not on mobile API** |
 | Offline queue / sync protocol | **Partial**: `client_uuid` idempotency on photo upload only — no full offline trip sync API |
 
-**Day flow:** Drivers list today’s trips, start them, complete stops, then end the trip (clock-out) once all stops are done. Stop clock-in/complete require the trip to be `in_progress` (403 otherwise). Mobile clock-out requires all stops terminal (`completed` / `skipped` / `failed`).
+**Day flow:** Drivers list today’s trips, complete the pre-trip checklist (all items pass), start the trip, complete stops, then end the trip (clock-out) once all stops are done.
 
 ---
 
@@ -58,6 +60,7 @@ You are building a **driver-facing mobile client** that consumes the **existing*
 ```
 User 1──1 Driver (drivers.user_id)
 Driver 1──* DriverTrip (assigned driver_id)
+DriverTrip 1──1 VehicleChecklist (pre-trip)
 DriverTrip 1──* TripStop (ordered)
 TripStop *──1 TransportJob
 TransportJob 1──* TripPhoto (completion_proof)
@@ -65,9 +68,10 @@ TransportJob 1──* TripPhoto (completion_proof)
 
 Statuses (simplified):
 
-- **Trip:** `planned` → `in_progress` (mobile trip clock-in) → `completed` (mobile trip clock-out)
+- **Trip:** `planned` → (checklist all pass) → `in_progress` (mobile trip clock-in) → `completed` (mobile trip clock-out)
 - **Stop:** `pending` → `arrived` (clock-in) → `completed` (complete + photos)
 - **Job:** … → `assigned` → `in_progress` (on stop clock-in) → `completed` (on stop complete)
+- **Checklist:** items `{ key, label, passed, notes }`; overall `passed` only when every item `passed === true`
 
 Job types (ERP): `delivery`, `rental_return`, `warehouse_transfer`, `standalone`.
 
@@ -137,9 +141,12 @@ Same `user` + `driver` shape. `403` if no linked driver. `401` if no/invalid tok
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/v1/transport/trips` | Today’s inbox for the linked driver |
-| `GET` | `/api/v1/transport/trips/{driverTrip}` | Trip detail with ordered stops + job summary |
-| `POST` | `/api/v1/transport/trips/{driverTrip}/clock-in` | Start trip (`planned` → `in_progress`) |
-| `POST` | `/api/v1/transport/trips/{driverTrip}/clock-out` | End trip (`in_progress` → `completed`) when all stops done |
+| `GET` | `/api/v1/transport/trips/{driverTrip}` | Trip detail with stops + nested checklist |
+| `POST` | `/api/v1/transport/trips/{driverTrip}/clock-in` | Start trip when checklist passed |
+| `POST` | `/api/v1/transport/trips/{driverTrip}/clock-out` | End trip when all stops done |
+| `GET` | `/api/v1/transport/trips/{driverTrip}/checklist` | Load/create pre-trip checklist |
+| `PUT` | `/api/v1/transport/trips/{driverTrip}/checklist` | Submit all 15 checklist items |
+| `POST` | `/api/v1/transport/trips/{driverTrip}/checklist/photos` | Optional checklist photos |
 | `GET` | `/api/v1/transport/jobs/{transportJob}/proof-photos` | List completion-proof photos |
 | `POST` | `/api/v1/transport/jobs/{transportJob}/proof-photos` | Upload 1–10 images (multipart) |
 | `DELETE` | `/api/v1/transport/jobs/{transportJob}/proof-photos/{tripPhoto}` | Delete one proof photo |
@@ -154,6 +161,8 @@ Returns `{ "data": [ trip payloads ] }` for the authenticated driver’s own tri
 
 - `planned_date` is today and status is `planned` or `in_progress`, **or**
 - status is `in_progress` (covers overnight trips still open)
+
+**Mobile note / backend ask:** completed trips for *today* currently disappear from this inbox. The app keeps a local cache after clock-out so Jobs can show **Completed**. Prefer the API also returning today’s `completed` trips (same assigned-driver scope) so the client cache is unnecessary.
 
 Each trip payload includes: `id`, `trip_no`, `status`, `status_label`, `planned_date`, `planned_start`, `planned_end`, `actual_start`, `actual_end`, `vehicle`, stop counts, `can_clock_in`, `all_stops_done`, `can_clock_out`, and `stops[]` (with nested `job` summary: job_no, type, customer, address, contacts, instructions).
 
@@ -238,22 +247,31 @@ If stop not yet arrived, backend **auto clock-in** then completes. Response incl
 
 1. **Login** — email/password; map validation errors from `email` field.
 2. **Home / trips inbox** — `GET /transport/trips`; pull-to-refresh; empty state when none assigned.
-3. **Trip detail** — `GET /transport/trips/{id}`; **Start trip** when `can_clock_in`; then open stops. When `can_clock_out`, show “Trip completed” dialog / **End trip**.
-4. **Stop detail** — Arrive → clock-in; Complete → camera/library + optional signature → multipart complete; if last stop, prompt end-trip dialog.
-5. **Job proofs** — gallery from GET; add/delete photos.
+3. **Trip detail** — `GET /transport/trips/{id}`; show checklist status; **Start trip** only when `can_clock_in`.
+4. **Pre-trip checklist** — `GET/PUT …/checklist` + optional `POST …/checklist/photos`; all 15 items must Pass.
+5. **Stop detail** — Arrive → clock-in; Complete → camera/library + optional signature → multipart complete; if last stop, prompt end-trip dialog.
+6. **Job proofs** — gallery from GET; add/delete photos.
 
-Do not build: registration, forgot-password (unless admin later adds API), ERP dispatcher, checklist UI calling missing endpoints.
+### Pre-trip checklist (mobile)
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/transport/trips/{driverTrip}/checklist` | Load or auto-create 15 items |
+| `PUT` | `/api/v1/transport/trips/{driverTrip}/checklist` | Submit all 15 items (`passed` boolean each) |
+| `POST` | `/api/v1/transport/trips/{driverTrip}/checklist/photos` | Optional photos (multipart `photos[]`) |
+
+Hard rules: do not Start Trip while `can_clock_in` is false; PUT only while trip is `planned`; after start checklist is read-only. Keys: `tyre`, `brake`, `lights`, `reverse_light`, `horn`, `mirror`, `engine_oil`, `coolant`, `fire_extinguisher`, `first_aid`, `cleanliness`, `fuel_level`, `mileage`, `cargo_secured`, `documents`.
+
+Do not build: registration, forgot-password (unless admin later adds API), ERP dispatcher.
 
 ---
 
 ## Backend reference (JS-Group repo — do not reimplement)
 
 - Routes: `routes/api.php`
-- Controllers: `app/Http/Controllers/Api/V1/Auth/DriverAuthController.php`, `DriverTripController.php`, `TransportJobProofPhotoController.php`, `TripStopClockInController.php`, `TripStopCompleteController.php`
-- Services: `DriverUserAccountService`, `TransportJobProofService`, `DriverTripService`
-- Policies: `DriverTripPolicy`, `TransportJobPolicy`
-- Tests: `tests/Feature/DriverMobileAuthTest.php`, `DriverMobileTripInboxTest.php`, `TransportJobProofPhotoTest.php`
-- Docs: `docs/ARCHITECTURE.md` §5.17 (“React Native mobile app deferred”)
+- Controllers: `DriverAuthController`, `DriverTripController`, `VehicleChecklistController`, `TransportJobProofPhotoController`, `TripStopClockInController`, `TripStopCompleteController`
+- Services: `DriverUserAccountService`, `VehicleChecklistService`, `TransportJobProofService`, `DriverTripService`
+- Tests: `DriverMobileAuthTest`, `DriverMobileTripInboxTest`, `DriverMobileChecklistTest`, `TransportJobProofPhotoTest`
 
 ## Explicit out of scope for the mobile client repo
 
@@ -266,8 +284,68 @@ Do not build: registration, forgot-password (unless admin later adds API), ERP d
 - [x] Login / logout / me with secure token storage
 - [x] No registration UI
 - [x] Trip inbox + trip clock-in against live API
+- [x] **Pre-trip checklist screen + Start-trip gate** (`can_clock_in` / checklist.passed)
 - [x] Trip clock-out when all stops done (dialog → API → ERP Completed)
 - [x] Clock-in stop + complete stop with ≥1 photo against live API
 - [x] Proof photo list/upload/delete against live API
 - [x] Errors: 401 → re-login; 403 → show message; 422 → field errors
 - [x] Configurable API base via `EXPO_PUBLIC_API_URL` (default `http://localhost:8000/api/v1`; Android emulator `http://10.0.2.2:8000/api/v1`)
+- [x] Richer native trip/job detail UI (no portal deep links)
+
+---
+
+## Backend request — richer job payload (driver mobile only)
+
+Mobile already consumes nested `job` on trip stop payloads from `GET /api/v1/transport/trips` and `GET /api/v1/transport/trips/{driverTrip}`. The app UI is ready for the fields below; **do not** expose portal URLs or web sessions to drivers.
+
+### Security (unchanged / required)
+
+- Same Sanctum Bearer `driver-app` token + `driver_app.access`
+- Trip/job/stop access only for the authenticated driver’s assigned `driver_id` (`DriverTripPolicy`)
+- Never return other drivers’ jobs, costing, payroll, or admin-only fields
+- Enrich **existing** trip show/inbox nested `job` JSON — no new public web pages for drivers
+
+### Add to nested `job` object (optional fields; omit when empty)
+
+```json
+{
+  "id": 1,
+  "job_no": "TJ-…",
+  "job_type": "delivery",
+  "job_type_label": "Delivery",
+  "status": "assigned",
+  "status_label": "Assigned",
+  "customer_name": "…",
+  "address_text": "…",
+  "contact_person": "…",
+  "contact_no": "+60…",
+  "items_description": "…",
+  "special_instructions": "…",
+  "started_at": null,
+  "completed_at": null,
+
+  "delivery_order_nos": ["DO-2026070001", "DO-2026070002"],
+  "line_items": [
+    { "sku": "MF-5G7-25", "name": "Main Frame 5'7\" 2.5mm", "qty": 10, "uom": "pcs" }
+  ],
+  "latitude": 3.1390,
+  "longitude": 101.6869
+}
+```
+
+| Field | Type | Purpose |
+|---|---|---|
+| `delivery_order_nos` | `string[]` | Driver-facing DO / booking refs for this job |
+| `line_items[]` | array | Structured cargo; each: `sku?`, `name`, `qty`, `uom?` |
+| `latitude` / `longitude` | `number\|null` | Site pin for Maps when address is weak |
+
+### Also keep / ensure populated on assignment
+
+- `items_description`, `special_instructions`, `contact_person`, `contact_no`, `address_text`
+- Stop `planned_arrival` / `actual_arrival` (already on stop)
+
+### Not requested
+
+- “View on website” links
+- Admin/ERP session cookie auth for mobile
+- Returning unassigned or other drivers’ jobs

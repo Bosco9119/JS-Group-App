@@ -4,16 +4,22 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
+import { PhotoViewerModal } from '@/components/photo-viewer-modal';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ErrorBanner, LoadingState } from '@/components/ui/states';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTranslation } from '@/context/locale';
 import { useTheme } from '@/hooks/use-theme';
+import { resolveMediaUrl } from '@/lib/config';
 import { deleteProofPhoto, fetchProofPhotos, uploadProofPhotos } from '@/lib/driver-api';
 import { getOptionalCoords, pickProofPhotos } from '@/lib/media';
 import type { ProofPhoto } from '@/lib/types';
 import { createClientUuid, formatApiMessage } from '@/lib/utils';
+
+function proofPhotoUri(photo: ProofPhoto): string | null {
+  return resolveMediaUrl(photo.photo_url) ?? resolveMediaUrl(photo.photo_path);
+}
 
 export default function JobProofsScreen() {
   const { jobId, tripId, stopId } = useLocalSearchParams<{
@@ -28,13 +34,27 @@ export default function JobProofsScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setPhotos(await fetchProofPhotos(numericJobId));
+      const next = await fetchProofPhotos(numericJobId);
+      if (__DEV__) {
+        console.log('[proofs] jobId=', numericJobId, 'count=', next.length);
+        next.forEach((photo) => {
+          console.log('[proofs] photo', {
+            id: photo.id,
+            photo_url: photo.photo_url,
+            photo_path: photo.photo_path,
+            resolved: proofPhotoUri(photo),
+          });
+        });
+      }
+      setPhotos(next);
     } catch (err) {
+      console.error('[proofs] load failed', err);
       setError(formatApiMessage(err, t('proofs.unableLoad')));
     } finally {
       setLoading(false);
@@ -109,30 +129,38 @@ export default function JobProofsScreen() {
             <EmptyState title={t('proofs.emptyTitle')} message={t('proofs.emptyMessage')} />
           ) : (
             <View style={styles.grid}>
-              {photos.map((photo) => (
-                <Pressable
-                  key={photo.id}
-                  onLongPress={() => onDelete(photo)}
-                  style={[
-                    styles.card,
-                    { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-                  ]}
-                >
-                  <Image
-                    source={{ uri: photo.photo_url ?? undefined }}
-                    style={styles.image}
-                    contentFit="cover"
-                  />
-                  <ThemedText type="small">{photo.photo_type_label}</ThemedText>
-                  <ThemedText themeColor="textSecondary" type="small">
-                    {t('proofs.longPressDelete')}
-                  </ThemedText>
-                </Pressable>
-              ))}
+              {photos.map((photo) => {
+                const uri = proofPhotoUri(photo);
+                return (
+                  <Pressable
+                    key={photo.id}
+                    onPress={() => {
+                      if (uri) setViewerUri(uri);
+                    }}
+                    onLongPress={() => onDelete(photo)}
+                    style={[
+                      styles.card,
+                      { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: uri ?? undefined }}
+                      style={styles.image}
+                      contentFit="cover"
+                    />
+                    <ThemedText type="small">{photo.photo_type_label}</ThemedText>
+                    <ThemedText themeColor="textSecondary" type="small">
+                      {t('proofs.longPressDelete')}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
         </ScrollView>
       )}
+
+      <PhotoViewerModal uri={viewerUri} onClose={() => setViewerUri(null)} />
     </View>
   );
 }

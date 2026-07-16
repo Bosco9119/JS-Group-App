@@ -11,6 +11,7 @@ import { EmptyState, ErrorBanner, LoadingState } from '@/components/ui/states';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTranslation } from '@/context/locale';
 import { useTheme } from '@/hooks/use-theme';
+import { statusLabel } from '@/i18n';
 import { fetchTrips } from '@/lib/driver-api';
 import { nextActionableTrip, nextPendingStop } from '@/lib/trip-metrics';
 import type { DriverTripSummary } from '@/lib/types';
@@ -103,7 +104,10 @@ export default function MapScreen() {
                 <ThemedText themeColor="textSecondary" type="small">
                   {nextStop.job?.address_text ?? '—'}
                 </ThemedText>
-                <StatusChip label={nextStop.status_label} tone={statusTone(nextStop.status)} />
+                <StatusChip
+                  label={statusLabel(t, nextStop.status, nextStop.status_label)}
+                  tone={statusTone(nextStop.status)}
+                />
                 <View style={styles.actions}>
                   <Button
                     title={t('map.call')}
@@ -141,7 +145,10 @@ export default function MapScreen() {
                     <ThemedText type="small">
                       #{stop.sequence} {stop.job?.job_no ?? stop.stop_type_label}
                     </ThemedText>
-                    <StatusChip label={stop.status_label} tone={statusTone(stop.status)} />
+                    <StatusChip
+                      label={statusLabel(t, stop.status, stop.status_label)}
+                      tone={statusTone(stop.status)}
+                    />
                   </View>
                 ))
               : null}

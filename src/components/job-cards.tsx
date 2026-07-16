@@ -4,8 +4,10 @@ import { StatusChip, jobTypeTone, statusTone } from '@/components/status-chip';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatTimeRange } from '@/lib/format';
+import { countCompletedStops, formatDateTime, formatTimeRange } from '@/lib/format';
 import type { DriverTripSummary, TripStopSummary } from '@/lib/types';
+import { statusLabel } from '@/i18n';
+import { useAppTranslation } from '@/context/locale';
 
 type TripCardProps = {
   trip: DriverTripSummary;
@@ -14,7 +16,9 @@ type TripCardProps = {
 
 export function TripCard({ trip, onPress }: TripCardProps) {
   const theme = useTheme();
+  const { t } = useAppTranslation();
   const firstStop = trip.stops?.[0];
+  const stopProgress = countCompletedStops(trip);
 
   return (
     <Pressable
@@ -30,7 +34,10 @@ export function TripCard({ trip, onPress }: TripCardProps) {
     >
       <View style={styles.row}>
         <ThemedText type="smallBold">{trip.trip_no}</ThemedText>
-        <StatusChip label={trip.status_label} tone={statusTone(trip.status)} />
+        <StatusChip
+          label={statusLabel(t, trip.status, trip.status_label)}
+          tone={statusTone(trip.status)}
+        />
       </View>
       <ThemedText themeColor="textSecondary" type="small">
         {formatTimeRange(trip.planned_start, trip.planned_end)}
@@ -44,7 +51,7 @@ export function TripCard({ trip, onPress }: TripCardProps) {
         </ThemedText>
       ) : (
         <ThemedText themeColor="textSecondary" type="small">
-          {trip.stops_completed_count}/{trip.stops_count} stops
+          {stopProgress.done}/{stopProgress.total} stops
         </ThemedText>
       )}
       {firstStop?.job ? (
@@ -61,6 +68,7 @@ type StopCardProps = {
 
 export function StopCard({ stop, onPress }: StopCardProps) {
   const theme = useTheme();
+  const { t } = useAppTranslation();
 
   return (
     <Pressable
@@ -82,7 +90,7 @@ export function StopCard({ stop, onPress }: StopCardProps) {
         />
       </View>
       <ThemedText themeColor="textSecondary" type="small">
-        {stop.planned_arrival ?? '—'}
+        {formatDateTime(stop.planned_arrival)}
       </ThemedText>
       {stop.job?.customer_name ? <ThemedText type="smallBold">{stop.job.customer_name}</ThemedText> : null}
       {stop.job?.address_text ? (
@@ -90,7 +98,10 @@ export function StopCard({ stop, onPress }: StopCardProps) {
           {stop.job.address_text}
         </ThemedText>
       ) : null}
-      <StatusChip label={stop.status_label} tone={statusTone(stop.status)} />
+      <StatusChip
+        label={statusLabel(t, stop.status, stop.status_label)}
+        tone={statusTone(stop.status)}
+      />
     </Pressable>
   );
 }

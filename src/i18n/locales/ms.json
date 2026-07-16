@@ -8,7 +8,8 @@
     "goBack": "Kembali",
     "settings": "Tetapan",
     "signOut": "Log keluar",
-    "errorGeneric": "Sesuatu tidak kena."
+    "errorGeneric": "Sesuatu tidak kena.",
+    "close": "Tutup"
   },
   "nav": {
     "home": "Laman Utama",
@@ -38,8 +39,11 @@
     "inProgress": "Sedang berjalan",
     "distance": "Anggaran jarak",
     "nextJob": "Kerja seterusnya",
+    "todayTrip": "Perjalanan hari ini",
     "nextStop": "Hentian seterusnya",
-    "upcomingStops": "Hentian akan datang"
+    "upcomingStops": "Hentian akan datang",
+    "stops": "Hentian",
+    "allStopsDone": "Semua hentian dalam perjalanan ini telah selesai."
   },
   "jobs": {
     "filterAll": "Semua",
@@ -77,23 +81,41 @@
     "helpBody": "Hubungi penghantar untuk sokongan. Bantuan dalam apl akan diperluas kemudian."
   },
   "vehicleCheck": {
-    "localOnly": "Disimpan pada peranti ini sahaja — segerak ERP akan datang.",
-    "ok": "OK",
-    "check": "Semak",
-    "photo": "Foto kenderaan",
-    "takePhoto": "Ambil / pilih foto",
-    "submit": "Hantar senarai semak",
-    "savedTitle": "Senarai semak disimpan",
-    "savedBody": "Disimpan pada peranti ini. Segerak ERP belum tersedia.",
-    "items": {
-      "headLight": "Lampu depan",
-      "tailLight": "Lampu belakang",
-      "brake": "Brek",
-      "tires": "Tayar",
-      "mirrors": "Cermin",
-      "oil": "Paras minyak",
-      "fuel": "Bahan api"
-    }
+    "localOnly": "Buka perjalanan yang dirancang untuk melengkapkan senarai semak pra-perjalanan."
+  },
+  "checklist": {
+    "title": "Senarai semak pra-perjalanan",
+    "loading": "Memuatkan senarai semak…",
+    "open": "Buka senarai semak",
+    "view": "Lihat senarai semak",
+    "requiredTitle": "Senarai semak kenderaan diperlukan",
+    "requiredBody": "Lengkapkan dan luluskan semua item sebelum memulakan perjalanan ini.",
+    "overall": "Status keseluruhan",
+    "statusPassed": "Lulus",
+    "statusFailed": "Gagal",
+    "statusPending": "Menunggu",
+    "pass": "Lulus",
+    "fail": "Gagal",
+    "notesPlaceholder": "Nota (pilihan)",
+    "photos": "Foto senarai semak",
+    "photosOptional": "Foto adalah pilihan dan tidak menyekat Mulakan perjalanan.",
+    "addPhotos": "Tambah foto",
+    "save": "Simpan senarai semak",
+    "unableLoad": "Tidak dapat memuatkan senarai semak.",
+    "unableSave": "Tidak dapat menyimpan senarai semak.",
+    "unableUploadPhotos": "Tidak dapat memuat naik foto senarai semak.",
+    "incompleteTitle": "Item belum lengkap",
+    "incompleteBody": "Tandakan Lulus atau Gagal pada setiap item sebelum menyimpan.",
+    "passedTitle": "Senarai semak lulus",
+    "passedBody": "Semua item lulus. Anda boleh memulakan perjalanan.",
+    "failedTitle": "Senarai semak tidak lulus",
+    "failedBody": "Setiap item mesti Lulus sebelum anda boleh memulakan perjalanan.",
+    "lockedTitle": "Senarai semak dikunci",
+    "lockedBody": "Senarai semak ini tidak boleh diedit selepas perjalanan bermula.",
+    "checkedAt": "Disemak pada {{at}}",
+    "startedBody": "Perjalanan berjaya dimulakan.",
+    "stubTitle": "Senarai semak pra-perjalanan",
+    "stubBody": "Buka perjalanan yang dirancang dari Kerja, kemudian lengkapkan senarai semak kenderaan sebelum Mulakan perjalanan."
   },
   "permissions": {
     "title": "Kebenaran diperlukan",
@@ -133,11 +155,33 @@
     "noRegisterHint": "Akaun dicipta oleh admin. Tiada pendaftaran sendiri.",
     "unable": "Tidak dapat log masuk."
   },
+  "jobDetail": {
+    "jobNo": "No. kerja",
+    "deliveryOrders": "Pesanan penghantaran",
+    "customer": "Pelanggan",
+    "address": "Alamat",
+    "contact": "Hubungan",
+    "items": "Barangan",
+    "lineItems": "Barangan",
+    "moreItems": "+{{count}} lagi",
+    "instructions": "Arahan khas",
+    "plannedArrival": "Ketibaan dirancang",
+    "actualArrival": "Ketibaan sebenar",
+    "jobStarted": "Kerja dimulakan",
+    "jobCompleted": "Kerja selesai",
+    "call": "Panggil",
+    "message": "Mesej",
+    "viewDetails": "Lihat butiran",
+    "readOnlyHint": "Perjalanan belum dimulakan. Anda boleh semak butiran, panggil atau navigasi. Tiba dan lengkap dibuka selepas anda mulakan perjalanan.",
+    "completedHint": "Kerja ini telah selesai. Anda masih boleh semak butiran dan foto bukti."
+  },
   "trips": {
     "title": "Perjalanan hari ini",
     "loading": "Memuatkan perjalanan…",
     "emptyTitle": "Tiada perjalanan hari ini",
     "emptyMessage": "Apabila penghantar menugaskan perjalanan untuk hari ini, ia akan muncul di sini. Tarik untuk muat semula.",
+    "emptyCompletedTitle": "Tiada perjalanan selesai",
+    "emptyCompletedMessage": "Perjalanan yang ditamatkan hari ini akan muncul di sini.",
     "unableLoad": "Tidak dapat memuatkan perjalanan.",
     "stopsDone": "{{done}}/{{total}} hentian selesai",
     "tripTitle": "Perjalanan",
@@ -148,14 +192,21 @@
     "unableStart": "Tidak dapat memulakan perjalanan.",
     "unableEnd": "Tidak dapat menamatkan perjalanan.",
     "cannotStart": "Perjalanan ini tidak boleh dimulakan dari aplikasi dalam status semasa ({{status}}).",
+    "tripCompletedHint": "Perjalanan ini telah selesai.",
     "startBeforeStops": "Mulakan perjalanan sebelum sampai ke hentian.",
     "stops": "Hentian",
     "notStartedTitle": "Perjalanan belum dimulakan",
     "notStartedBody": "Mulakan perjalanan sebelum mengerjakan hentian.",
     "noJob": "Tiada kerja",
     "planned": "Dirancang {{date}}{{start}}{{end}}",
+    "actualStart": "Mula sebenar: {{at}}",
+    "actualEnd": "Tamat sebenar: {{at}}",
+    "tripNotes": "Nota perjalanan",
+    "overnight": "Bermalam",
+    "outOfState": "Luar negeri",
+    "vehicle": "Kenderaan",
     "completedDialogTitle": "Perjalanan selesai",
-    "completedDialogBody": "Semua hentian pada {{tripNo}} selesai. Tamatkan perjalanan ini untuk menandakannya Selesai di laman web?",
+    "completedDialogBody": "Semua hentian pada {{tripNo}} selesai. Tamatkan perjalanan ini untuk menandakannya Selesai?",
     "endedTitle": "Perjalanan ditamatkan",
     "endedBody": "{{tripNo}} kini Selesai."
   },
@@ -211,7 +262,7 @@
     "deleteTitle": "Padam foto?",
     "deleteBody": "Ini membuang foto bukti dari kerja.",
     "delete": "Padam",
-    "longPressDelete": "Tekan lama untuk padam"
+    "longPressDelete": "Ketik untuk lihat · tekan lama untuk padam"
   },
   "settings": {
     "title": "Tetapan",
@@ -234,7 +285,7 @@
     "cancelled": "Dibatalkan",
     "pending": "Menunggu",
     "en_route": "Dalam Perjalanan",
-    "arrived": "Tiba",
+    "arrived": "Tiba · Dalam proses",
     "skipped": "Dilangkau",
     "failed": "Gagal"
   }

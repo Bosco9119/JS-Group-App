@@ -8,7 +8,8 @@
     "goBack": "Go back",
     "settings": "Settings",
     "signOut": "Sign out",
-    "errorGeneric": "Something went wrong."
+    "errorGeneric": "Something went wrong.",
+    "close": "Close"
   },
   "nav": {
     "home": "Home",
@@ -38,8 +39,11 @@
     "inProgress": "In progress",
     "distance": "Est. distance",
     "nextJob": "Next job",
+    "todayTrip": "Today’s trip",
     "nextStop": "Next stop",
-    "upcomingStops": "Upcoming stops"
+    "upcomingStops": "Upcoming stops",
+    "stops": "Stops",
+    "allStopsDone": "All stops on this trip are done."
   },
   "jobs": {
     "filterAll": "All",
@@ -77,23 +81,41 @@
     "helpBody": "Contact your dispatcher for support. In-app help will expand later."
   },
   "vehicleCheck": {
-    "localOnly": "Saved on this device only — ERP sync is coming soon.",
-    "ok": "OK",
-    "check": "Check",
-    "photo": "Vehicle photo",
-    "takePhoto": "Take / choose photo",
-    "submit": "Submit checklist",
-    "savedTitle": "Checklist saved",
-    "savedBody": "Saved on this device. ERP sync is not available yet.",
-    "items": {
-      "headLight": "Head light",
-      "tailLight": "Tail light",
-      "brake": "Brake",
-      "tires": "Tires",
-      "mirrors": "Mirrors",
-      "oil": "Oil level",
-      "fuel": "Fuel"
-    }
+    "localOnly": "Open a planned trip to complete the pre-trip vehicle checklist."
+  },
+  "checklist": {
+    "title": "Pre-trip checklist",
+    "loading": "Loading checklist…",
+    "open": "Open checklist",
+    "view": "View checklist",
+    "requiredTitle": "Vehicle checklist required",
+    "requiredBody": "Complete and pass all checklist items before starting this trip.",
+    "overall": "Overall status",
+    "statusPassed": "Passed",
+    "statusFailed": "Failed",
+    "statusPending": "Pending",
+    "pass": "Pass",
+    "fail": "Fail",
+    "notesPlaceholder": "Notes (optional)",
+    "photos": "Checklist photos",
+    "photosOptional": "Photos are optional and do not block Start trip.",
+    "addPhotos": "Add photo(s)",
+    "save": "Save checklist",
+    "unableLoad": "Unable to load checklist.",
+    "unableSave": "Unable to save checklist.",
+    "unableUploadPhotos": "Unable to upload checklist photos.",
+    "incompleteTitle": "Items incomplete",
+    "incompleteBody": "Mark Pass or Fail on every item before saving.",
+    "passedTitle": "Checklist passed",
+    "passedBody": "All items passed. You can start the trip.",
+    "failedTitle": "Checklist not passed",
+    "failedBody": "Every item must Pass before you can start the trip.",
+    "lockedTitle": "Checklist locked",
+    "lockedBody": "This checklist cannot be edited after the trip has started.",
+    "checkedAt": "Checked at {{at}}",
+    "startedBody": "Trip started successfully.",
+    "stubTitle": "Pre-trip checklist",
+    "stubBody": "Open a planned trip from Jobs, then complete the vehicle checklist before Start trip."
   },
   "permissions": {
     "title": "Required permissions",
@@ -133,11 +155,33 @@
     "noRegisterHint": "Accounts are created by admin. There is no self-registration.",
     "unable": "Unable to sign in."
   },
+  "jobDetail": {
+    "jobNo": "Job no.",
+    "deliveryOrders": "Delivery orders",
+    "customer": "Customer",
+    "address": "Address",
+    "contact": "Contact",
+    "items": "Items",
+    "lineItems": "Items",
+    "moreItems": "+{{count}} more",
+    "instructions": "Special instructions",
+    "plannedArrival": "Planned arrival",
+    "actualArrival": "Actual arrival",
+    "jobStarted": "Job started",
+    "jobCompleted": "Job completed",
+    "call": "Call",
+    "message": "Message",
+    "viewDetails": "View details",
+    "readOnlyHint": "Trip not started yet. You can review details, call, or navigate. Arrive and complete will unlock after you start the trip.",
+    "completedHint": "This job is completed. You can still review details and proof photos."
+  },
   "trips": {
     "title": "Today’s trips",
     "loading": "Loading trips…",
     "emptyTitle": "No trips today",
     "emptyMessage": "When dispatch assigns you a trip for today, it will show up here. Pull to refresh.",
+    "emptyCompletedTitle": "No completed trips",
+    "emptyCompletedMessage": "Finished trips for today will appear here after you end a trip.",
     "unableLoad": "Unable to load trips.",
     "stopsDone": "{{done}}/{{total}} stops done",
     "tripTitle": "Trip",
@@ -148,14 +192,21 @@
     "unableStart": "Unable to start trip.",
     "unableEnd": "Unable to end trip.",
     "cannotStart": "This trip cannot be started from the app in its current status ({{status}}).",
+    "tripCompletedHint": "This trip is completed.",
     "startBeforeStops": "Start the trip before arriving at stops.",
     "stops": "Stops",
     "notStartedTitle": "Trip not started",
     "notStartedBody": "Start the trip before working stops.",
     "noJob": "No job",
     "planned": "Planned {{date}}{{start}}{{end}}",
+    "actualStart": "Actual start: {{at}}",
+    "actualEnd": "Actual end: {{at}}",
+    "tripNotes": "Trip notes",
+    "overnight": "Overnight",
+    "outOfState": "Out of state",
+    "vehicle": "Vehicle",
     "completedDialogTitle": "Trip completed",
-    "completedDialogBody": "All stops on {{tripNo}} are done. End this trip to mark it Completed on the website?",
+    "completedDialogBody": "All stops on {{tripNo}} are done. End this trip to mark it Completed?",
     "endedTitle": "Trip ended",
     "endedBody": "{{tripNo}} is now Completed."
   },
@@ -211,7 +262,7 @@
     "deleteTitle": "Delete photo?",
     "deleteBody": "This removes the proof photo from the job.",
     "delete": "Delete",
-    "longPressDelete": "Long-press to delete"
+    "longPressDelete": "Tap to view · long-press to delete"
   },
   "settings": {
     "title": "Settings",
@@ -234,7 +285,7 @@
     "cancelled": "Cancelled",
     "pending": "Pending",
     "en_route": "En Route",
-    "arrived": "Arrived",
+    "arrived": "Arrived · In Progress",
     "skipped": "Skipped",
     "failed": "Failed"
   }

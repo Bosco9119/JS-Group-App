@@ -8,7 +8,8 @@
     "goBack": "返回",
     "settings": "设置",
     "signOut": "退出登录",
-    "errorGeneric": "出错了。"
+    "errorGeneric": "出错了。",
+    "close": "关闭"
   },
   "nav": {
     "home": "首页",
@@ -38,8 +39,11 @@
     "inProgress": "进行中",
     "distance": "预估里程",
     "nextJob": "下一个任务",
+    "todayTrip": "今日行程",
     "nextStop": "下一站",
-    "upcomingStops": "即将到达的站点"
+    "upcomingStops": "即将到达的站点",
+    "stops": "站点",
+    "allStopsDone": "此行程的所有站点已完成。"
   },
   "jobs": {
     "filterAll": "全部",
@@ -77,23 +81,41 @@
     "helpBody": "请联系调度获取支持。应用内帮助将随后扩展。"
   },
   "vehicleCheck": {
-    "localOnly": "仅保存在本机 — ERP 同步即将推出。",
-    "ok": "正常",
-    "check": "检查",
-    "photo": "车辆照片",
-    "takePhoto": "拍照 / 选择照片",
-    "submit": "提交检查表",
-    "savedTitle": "检查表已保存",
-    "savedBody": "已保存在本机。ERP 同步尚不可用。",
-    "items": {
-      "headLight": "前灯",
-      "tailLight": "尾灯",
-      "brake": "刹车",
-      "tires": "轮胎",
-      "mirrors": "后视镜",
-      "oil": "机油",
-      "fuel": "燃油"
-    }
+    "localOnly": "请打开已计划的行程以完成出车前车辆检查。"
+  },
+  "checklist": {
+    "title": "出车前检查",
+    "loading": "正在加载检查表…",
+    "open": "打开检查表",
+    "view": "查看检查表",
+    "requiredTitle": "需要车辆检查",
+    "requiredBody": "开始行程前须完成并通过全部检查项。",
+    "overall": "总体状态",
+    "statusPassed": "已通过",
+    "statusFailed": "未通过",
+    "statusPending": "待检查",
+    "pass": "通过",
+    "fail": "不通过",
+    "notesPlaceholder": "备注（可选）",
+    "photos": "检查照片",
+    "photosOptional": "照片为可选项，不阻止开始行程。",
+    "addPhotos": "添加照片",
+    "save": "保存检查表",
+    "unableLoad": "无法加载检查表。",
+    "unableSave": "无法保存检查表。",
+    "unableUploadPhotos": "无法上传检查照片。",
+    "incompleteTitle": "项目未完成",
+    "incompleteBody": "保存前请为每一项选择通过或不通过。",
+    "passedTitle": "检查已通过",
+    "passedBody": "全部项目已通过，可以开始行程。",
+    "failedTitle": "检查未通过",
+    "failedBody": "全部项目必须通过后才能开始行程。",
+    "lockedTitle": "检查表已锁定",
+    "lockedBody": "行程开始后不可再编辑检查表。",
+    "checkedAt": "检查时间 {{at}}",
+    "startedBody": "行程已成功开始。",
+    "stubTitle": "出车前检查",
+    "stubBody": "请先从任务列表打开计划行程，完成车辆检查后再开始行程。"
   },
   "permissions": {
     "title": "所需权限",
@@ -133,11 +155,33 @@
     "noRegisterHint": "账号由管理员创建，不支持自行注册。",
     "unable": "无法登录。"
   },
+  "jobDetail": {
+    "jobNo": "任务编号",
+    "deliveryOrders": "送货单",
+    "customer": "客户",
+    "address": "地址",
+    "contact": "联系人",
+    "items": "货物明细",
+    "lineItems": "货物明细",
+    "moreItems": "另有 {{count}} 项",
+    "instructions": "特别说明",
+    "plannedArrival": "计划到达",
+    "actualArrival": "实际到达",
+    "jobStarted": "任务开始",
+    "jobCompleted": "任务完成",
+    "call": "呼叫",
+    "message": "短信",
+    "viewDetails": "查看详情",
+    "readOnlyHint": "行程尚未开始。您可以查看详情、拨打电话或导航。开始行程后才能到达与完成。",
+    "completedHint": "此任务已完成。您仍可查看详情与凭证照片。"
+  },
   "trips": {
     "title": "今日行程",
     "loading": "正在加载行程…",
     "emptyTitle": "今日暂无行程",
     "emptyMessage": "调度分配今日行程后会显示在这里。下拉刷新。",
+    "emptyCompletedTitle": "暂无已完成行程",
+    "emptyCompletedMessage": "结束行程后，今日已完成的行程会显示在这里。",
     "unableLoad": "无法加载行程。",
     "stopsDone": "已完成 {{done}}/{{total}} 站",
     "tripTitle": "行程",
@@ -148,14 +192,21 @@
     "unableStart": "无法开始行程。",
     "unableEnd": "无法结束行程。",
     "cannotStart": "当前状态（{{status}}）无法从应用开始此行程。",
+    "tripCompletedHint": "此行程已完成。",
     "startBeforeStops": "请先开始行程再到达站点。",
     "stops": "站点",
     "notStartedTitle": "行程未开始",
     "notStartedBody": "请先开始行程再处理站点。",
     "noJob": "无任务",
     "planned": "计划 {{date}}{{start}}{{end}}",
+    "actualStart": "实际开始：{{at}}",
+    "actualEnd": "实际结束：{{at}}",
+    "tripNotes": "行程备注",
+    "overnight": "过夜",
+    "outOfState": "州外",
+    "vehicle": "车辆",
     "completedDialogTitle": "行程已完成",
-    "completedDialogBody": "{{tripNo}} 的所有站点已完成。是否结束行程并在网站标记为已完成？",
+    "completedDialogBody": "{{tripNo}} 的所有站点已完成。是否结束行程并标记为已完成？",
     "endedTitle": "行程已结束",
     "endedBody": "{{tripNo}} 现为已完成。"
   },
@@ -211,7 +262,7 @@
     "deleteTitle": "删除照片？",
     "deleteBody": "将从该任务移除凭证照片。",
     "delete": "删除",
-    "longPressDelete": "长按删除"
+    "longPressDelete": "点按查看 · 长按删除"
   },
   "settings": {
     "title": "设置",
@@ -234,7 +285,7 @@
     "cancelled": "已取消",
     "pending": "待处理",
     "en_route": "途中",
-    "arrived": "已到达",
+    "arrived": "已到达 · 进行中",
     "skipped": "已跳过",
     "failed": "失败"
   }

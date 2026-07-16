@@ -1,10 +1,17 @@
 import { apiJson, apiMultipart, appendImage } from '@/lib/api';
+import {
+  getCachedCompletedTrip,
+  mergeInboxWithCompletedCache,
+  rememberCompletedTrip,
+} from '@/lib/completed-trips-cache';
 import type {
+  ChecklistItemInput,
   DriverTripSummary,
   LocalImage,
   LoginResponse,
   MeResponse,
   ProofPhoto,
+  VehicleChecklist,
 } from '@/lib/types';
 
 export async function login(email: string, password: string) {
@@ -24,12 +31,19 @@ export async function fetchMe() {
 
 export async function fetchTrips() {
   const response = await apiJson<{ data: DriverTripSummary[] }>('/transport/trips');
-  return response.data;
+  // Inbox API omits completed trips; merge today's locally cached clock-outs.
+  return mergeInboxWithCompletedCache(response.data);
 }
 
 export async function fetchTrip(tripId: number) {
-  const response = await apiJson<{ data: DriverTripSummary }>(`/transport/trips/${tripId}`);
-  return response.data;
+  try {
+    const response = await apiJson<{ data: DriverTripSummary }>(`/transport/trips/${tripId}`);
+    return response.data;
+  } catch (err) {
+    const cached = await getCachedCompletedTrip(tripId);
+    if (cached) return cached;
+    throw err;
+  }
 }
 
 export async function clockInTrip(tripId: number) {
@@ -43,6 +57,37 @@ export async function clockOutTrip(tripId: number) {
   const response = await apiJson<{ data: DriverTripSummary }>(`/transport/trips/${tripId}/clock-out`, {
     method: 'POST',
   });
+  await rememberCompletedTrip(response.data);
+  return response.data;
+}
+
+export async function fetchChecklist(tripId: number) {
+  const response = await apiJson<{ data: VehicleChecklist }>(
+    `/transport/trips/${tripId}/checklist`,
+  );
+  return response.data;
+}
+
+export async function updateChecklist(tripId: number, items: ChecklistItemInput[]) {
+  const response = await apiJson<{ data: VehicleChecklist }>(
+    `/transport/trips/${tripId}/checklist`,
+    {
+      method: 'PUT',
+      json: { items },
+    },
+  );
+  return response.data;
+}
+
+export async function uploadChecklistPhotos(tripId: number, photos: LocalImage[]) {
+  const formData = new FormData();
+  for (let index = 0; index < photos.length; index += 1) {
+    await appendImage(formData, `photos[${index}]`, photos[index]);
+  }
+  const response = await apiMultipart<{ data: VehicleChecklist }>(
+    `/transport/trips/${tripId}/checklist/photos`,
+    formData,
+  );
   return response.data;
 }
 

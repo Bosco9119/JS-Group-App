@@ -27,7 +27,8 @@ function AppDrawer() {
       }}
     >
       <Drawer.Screen name="(tabs)" options={{ title: t('nav.home'), drawerItemStyle: { display: 'none' } }} />
-      <Drawer.Screen name="trips/[id]" options={{ drawerItemStyle: { display: 'none' } }} />
+      <Drawer.Screen name="trips/[id]/index" options={{ drawerItemStyle: { display: 'none' } }} />
+      <Drawer.Screen name="trips/[id]/checklist" options={{ drawerItemStyle: { display: 'none' } }} />
       <Drawer.Screen name="stops/[id]" options={{ drawerItemStyle: { display: 'none' } }} />
       <Drawer.Screen name="proofs/[jobId]" options={{ drawerItemStyle: { display: 'none' } }} />
       <Drawer.Screen name="schedule" options={{ drawerItemStyle: { display: 'none' } }} />
