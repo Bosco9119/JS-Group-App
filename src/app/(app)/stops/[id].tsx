@@ -268,6 +268,25 @@ export default function StopDetailScreen() {
             </View>
           ) : null}
 
+          {stop.job ? (
+            <JobDetailSections
+              job={stop.job}
+              stop={stop}
+              showActions={tripActive && !isStopFinished(stop.status)}
+            />
+          ) : (
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+              ]}
+            >
+              <ThemedText type="smallBold">
+                #{stop.sequence} · {stop.stop_type_label}
+              </ThemedText>
+            </View>
+          )}
+
           <View
             style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
           >
@@ -290,25 +309,6 @@ export default function StopDetailScreen() {
           {canStartJob ? (
             <Button title={t('stops.arrive')} loading={busy} onPress={() => void onStartJob()} />
           ) : null}
-
-          {stop.job ? (
-            <JobDetailSections
-              job={stop.job}
-              stop={stop}
-              showActions={tripActive && !isStopFinished(stop.status)}
-            />
-          ) : (
-            <View
-              style={[
-                styles.card,
-                { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-              ]}
-            >
-              <ThemedText type="smallBold">
-                #{stop.sequence} · {stop.stop_type_label}
-              </ThemedText>
-            </View>
-          )}
 
           {canComplete ? (
             <View style={styles.section}>
