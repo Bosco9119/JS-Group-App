@@ -47,7 +47,7 @@ export function jobTypeTone(_jobType?: string | null): Tone {
   return 'neutral';
 }
 
-/** Only terminal success — not arrived (that is still in progress). */
+/** Only terminal success — started/arrived is still in progress. */
 export function isStopCompleted(status?: string | null): boolean {
   return status === 'completed';
 }
@@ -60,13 +60,19 @@ export function isStopInProgress(status?: string | null): boolean {
   return status === 'in_progress' || status === 'arrived' || status === 'en_route';
 }
 
-/** Prefer grey chips; keep a quiet mark for current work and danger for failures. */
+/** Colored status chips: yellow for pending/in progress, green for completed. */
 export function statusTone(status?: string | null): Tone {
   switch (status) {
+    case 'completed':
+      return 'success';
     case 'in_progress':
     case 'arrived':
     case 'en_route':
       return 'info';
+    case 'planned':
+    case 'pending':
+    case 'assigned':
+      return 'warning';
     case 'failed':
     case 'cancelled':
       return 'danger';

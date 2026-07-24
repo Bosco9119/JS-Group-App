@@ -22,8 +22,9 @@ import { useTheme } from '@/hooks/use-theme';
 import { statusLabel } from '@/i18n';
 import { clockInStop, clockOutTrip, completeStop, fetchTrip } from '@/lib/driver-api';
 import { getOptionalCoords, pickProofPhotos } from '@/lib/media';
+import { confirmStartNextJobDialog, nextOpenStop } from '@/lib/next-job';
 import { confirmEndTripDialog, tripReadyToEnd } from '@/lib/trip-complete';
-import type { LocalImage, TripStopSummary } from '@/lib/types';
+import type { DriverTripSummary, LocalImage, TripStopSummary } from '@/lib/types';
 import { createClientUuid, formatApiMessage } from '@/lib/utils';
 
 export default function StopDetailScreen() {
@@ -35,6 +36,7 @@ export default function StopDetailScreen() {
   const { t } = useAppTranslation();
 
   const [stop, setStop] = useState<TripStopSummary | null>(null);
+  const [trip, setTrip] = useState<DriverTripSummary | null>(null);
   const [tripStatus, setTripStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -64,10 +66,11 @@ export default function StopDetailScreen() {
     setLoading(true);
     setError(null);
     try {
-      const trip = await fetchTrip(linkedTripId);
-      const found = trip.stops?.find((item) => item.id === stopId) ?? null;
+      const tripData = await fetchTrip(linkedTripId);
+      const found = tripData.stops?.find((item) => item.id === stopId) ?? null;
       setStop(found);
-      setTripStatus(trip.status);
+      setTrip(tripData);
+      setTripStatus(tripData.status);
       if (!found) {
         setError(t('stops.notFound'));
       }
@@ -82,12 +85,13 @@ export default function StopDetailScreen() {
   useEffect(() => {
     clearProofDraft();
     setStop(null);
+    setTrip(null);
     setTripStatus(null);
     setError(null);
     void load();
   }, [stopId, linkedTripId, load]);
 
-  const canArrive = useMemo(
+  const canStartJob = useMemo(
     () => tripActive && !!stop && ['pending', 'en_route'].includes(stop.status),
     [stop, tripActive],
   );
@@ -95,20 +99,24 @@ export default function StopDetailScreen() {
     () => tripActive && !!stop && !['completed', 'skipped', 'failed'].includes(stop.status),
     [stop, tripActive],
   );
+  async function openNextJob(stopIdToOpen: number) {
+    if (!linkedTripId) return;
+    router.replace(`/(app)/stops/${stopIdToOpen}?tripId=${linkedTripId}`);
+  }
 
   const progressSteps = useMemo(() => {
     if (!stop) return [];
-    const arrived = !['pending', 'en_route'].includes(stop.status);
+    const started = !['pending', 'en_route'].includes(stop.status);
     const completed = stop.status === 'completed';
     return [
       { key: 'accepted', label: t('stops.progressAccepted'), done: true },
-      { key: 'enroute', label: t('stops.progressEnRoute'), done: arrived || completed },
-      { key: 'arrived', label: t('stops.progressArrived'), done: arrived || completed },
+      { key: 'enroute', label: t('stops.progressEnRoute'), done: started || completed },
+      { key: 'started', label: t('stops.progressArrived'), done: started || completed },
       { key: 'complete', label: t('stops.progressComplete'), done: completed },
     ];
   }, [stop, t]);
 
-  async function onArrive() {
+  async function onStartJob() {
     setBusy(true);
     setError(null);
     try {
@@ -159,15 +167,16 @@ export default function StopDetailScreen() {
       });
       clearProofDraft();
 
-      const trip = await fetchTrip(linkedTripId);
-      const found = trip.stops?.find((item) => item.id === stopId) ?? null;
+      const tripData = await fetchTrip(linkedTripId);
+      const found = tripData.stops?.find((item) => item.id === stopId) ?? null;
       setStop(found);
-      setTripStatus(trip.status);
+      setTrip(tripData);
+      setTripStatus(tripData.status);
 
-      if (tripReadyToEnd(trip)) {
-        const confirmed = await confirmEndTripDialog(trip);
+      if (tripReadyToEnd(tripData)) {
+        const confirmed = await confirmEndTripDialog(tripData);
         if (confirmed) {
-          const updated = await clockOutTrip(trip.id);
+          const updated = await clockOutTrip(tripData.id);
           Alert.alert(t('trips.endedTitle'), t('trips.endedBody', { tripNo: updated.trip_no }), [
             {
               text: t('common.ok'),
@@ -177,9 +186,31 @@ export default function StopDetailScreen() {
         } else {
           Alert.alert(t('stops.stopCompletedTitle'), t('stops.stopCompletedBody'));
         }
-      } else {
-        Alert.alert(t('stops.stopCompletedTitle'), t('stops.stopCompletedBody'));
+        return;
       }
+
+      const next = nextOpenStop(tripData);
+      if (next) {
+        const startNow = await confirmStartNextJobDialog(next);
+        if (startNow) {
+          const needsClockIn = ['pending', 'en_route'].includes(next.status);
+          if (needsClockIn) {
+            await clockInStop(next.id);
+          }
+          Alert.alert(t('stops.nextJobStartedTitle'), t('stops.nextJobStartedBody'), [
+            {
+              text: t('common.ok'),
+              onPress: () => void openNextJob(next.id),
+            },
+          ]);
+          return;
+        }
+        // Declined: keep next stop pending so start time is not recorded yet.
+        Alert.alert(t('stops.stopCompletedTitle'), t('stops.startNextHint'));
+        return;
+      }
+
+      Alert.alert(t('stops.stopCompletedTitle'), t('stops.stopCompletedBody'));
     } catch (err) {
       setError(formatApiMessage(err, t('stops.unableComplete')));
     } finally {
@@ -237,25 +268,6 @@ export default function StopDetailScreen() {
             </View>
           ) : null}
 
-          {stop.job ? (
-            <JobDetailSections
-              job={stop.job}
-              stop={stop}
-              showActions={tripActive && !isStopFinished(stop.status)}
-            />
-          ) : (
-            <View
-              style={[
-                styles.card,
-                { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-              ]}
-            >
-              <ThemedText type="smallBold">
-                #{stop.sequence} · {stop.stop_type_label}
-              </ThemedText>
-            </View>
-          )}
-
           <View
             style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
           >
@@ -275,9 +287,28 @@ export default function StopDetailScreen() {
             ))}
           </View>
 
-          {canArrive ? (
-            <Button title={t('stops.arrive')} loading={busy} onPress={() => void onArrive()} />
+          {canStartJob ? (
+            <Button title={t('stops.arrive')} loading={busy} onPress={() => void onStartJob()} />
           ) : null}
+
+          {stop.job ? (
+            <JobDetailSections
+              job={stop.job}
+              stop={stop}
+              showActions={tripActive && !isStopFinished(stop.status)}
+            />
+          ) : (
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+              ]}
+            >
+              <ThemedText type="smallBold">
+                #{stop.sequence} · {stop.stop_type_label}
+              </ThemedText>
+            </View>
+          )}
 
           {canComplete ? (
             <View style={styles.section}>

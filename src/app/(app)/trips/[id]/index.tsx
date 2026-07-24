@@ -13,7 +13,7 @@ import { useAppTranslation } from '@/context/locale';
 import { useTheme } from '@/hooks/use-theme';
 import { statusLabel } from '@/i18n';
 import { canNavigate, openMapsNavigate } from '@/lib/directions';
-import { clockInTrip, clockOutTrip, fetchTrip } from '@/lib/driver-api';
+import { clockInStop, clockInTrip, clockOutTrip, fetchTrip } from '@/lib/driver-api';
 import {
   countCompletedStops,
   formatDate,
@@ -22,6 +22,7 @@ import {
   vehicleLabel,
 } from '@/lib/format';
 import { jobLineItems } from '@/lib/job-items';
+import { nextStartableStop } from '@/lib/next-job';
 import { confirmEndTripDialog, tripReadyToEnd } from '@/lib/trip-complete';
 import type { DriverTripSummary } from '@/lib/types';
 import { ApiError } from '@/lib/types';
@@ -52,6 +53,7 @@ export default function TripDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [startingNext, setStartingNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const autoPromptedRef = useRef(false);
   const endingRef = useRef(false);
@@ -136,6 +138,24 @@ export default function TripDetailScreen() {
   async function onEndTripPress() {
     if (!trip) return;
     await endTripAfterConfirm(trip);
+  }
+
+  async function onStartNextJob() {
+    if (!trip || trip.status !== 'in_progress') return;
+    const next = nextStartableStop(trip);
+    if (!next) return;
+
+    setStartingNext(true);
+    setError(null);
+    try {
+      // Commission start = stop clock-in timestamp (job.started_at / actual_arrival)
+      await clockInStop(next.id);
+      router.push(`/(app)/stops/${next.id}?tripId=${trip.id}`);
+    } catch (err) {
+      setError(formatApiMessage(err, t('stops.unableArrive')));
+    } finally {
+      setStartingNext(false);
+    }
   }
 
   return (
@@ -283,6 +303,34 @@ export default function TripDetailScreen() {
             <Button title={t('trips.startTrip')} loading={starting} onPress={() => void onStartTrip()} />
           ) : null}
 
+          {trip.status === 'in_progress' && nextStartableStop(trip) ? (
+            <View
+              style={[
+                styles.banner,
+                { backgroundColor: theme.backgroundSelected, borderColor: theme.border },
+              ]}
+            >
+              <ThemedText type="smallBold">{t('stops.startNextJob')}</ThemedText>
+              <ThemedText themeColor="textSecondary" type="small">
+                {t('stops.startNextHint')}
+              </ThemedText>
+              <ThemedText type="small">
+                {(() => {
+                  const next = nextStartableStop(trip);
+                  if (!next) return '';
+                  return `${next.job?.job_no ?? `#${next.sequence}`}${
+                    next.job?.customer_name ? ` · ${next.job.customer_name}` : ''
+                  }`;
+                })()}
+              </ThemedText>
+              <Button
+                title={t('stops.startNextJob')}
+                loading={startingNext}
+                onPress={() => void onStartNextJob()}
+              />
+            </View>
+          ) : null}
+
           {tripReadyToEnd(trip) ? (
             <Button title={t('trips.endTrip')} loading={ending} onPress={() => void onEndTripPress()} />
           ) : null}
@@ -305,6 +353,9 @@ export default function TripDetailScreen() {
           {(trip.stops ?? []).map((stop) => {
             const job = stop.job;
             const finished = isStopFinished(stop.status);
+            const nextStartable = nextStartableStop(trip);
+            const isNextStartable =
+              trip.status === 'in_progress' && nextStartable?.id === stop.id;
             const navTarget = {
               address: job?.address_text,
               latitude: job?.latitude,
@@ -349,6 +400,13 @@ export default function TripDetailScreen() {
                     {t('jobDetail.viewDetails')}
                   </ThemedText>
                 </Pressable>
+                {isNextStartable ? (
+                  <Button
+                    title={t('stops.startNextJob')}
+                    loading={startingNext}
+                    onPress={() => void onStartNextJob()}
+                  />
+                ) : null}
                 {!finished && canNavigate(navTarget) ? (
                   <Button
                     title={t('map.navigate')}

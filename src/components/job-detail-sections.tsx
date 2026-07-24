@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { type Href, useRouter } from 'expo-router';
 
 import { JobLineItems } from '@/components/job-line-items';
 import { StatusChip, jobTypeTone, isStopFinished } from '@/components/status-chip';
@@ -15,7 +16,7 @@ import {
   openSms,
 } from '@/lib/directions';
 import { formatDateTime } from '@/lib/format';
-import { jobLineItems } from '@/lib/job-items';
+import { jobLineItems, secondaryDeliveryOrderNos } from '@/lib/job-items';
 import type { JobSummary, TripStopSummary } from '@/lib/types';
 
 type Props = {
@@ -38,6 +39,7 @@ function DetailBlock({ label, children }: { label: string; children: ReactNode }
 
 export function JobDetailSections({ job, stop, showActions = true }: Props) {
   const theme = useTheme();
+  const router = useRouter();
   const { t } = useAppTranslation();
 
   const phone = job.contact_no?.trim() || null;
@@ -49,8 +51,10 @@ export function JobDetailSections({ job, stop, showActions = true }: Props) {
   const finished = isStopFinished(stop?.status) || job.status === 'completed';
   const actionsEnabled = showActions && !finished;
   const hasNavigate = canNavigate(navigateTarget);
-  const doNos = (job.delivery_order_nos ?? []).filter(Boolean);
   const hasLineItems = jobLineItems(job).length > 0;
+  const secondaryDos = secondaryDeliveryOrderNos(job);
+  const hasPdf = job.has_source_document_pdf === true;
+  const documentLabel = job.document_no?.trim() || null;
 
   return (
     <View
@@ -59,16 +63,29 @@ export function JobDetailSections({ job, stop, showActions = true }: Props) {
         { backgroundColor: theme.backgroundElement, borderColor: theme.border },
       ]}
     >
-      {/* Status lives in the screen header — only job type here. */}
-      <StatusChip label={job.job_type_label} tone={jobTypeTone(job.job_type)} />
+      <View style={styles.chipRow}>
+        <StatusChip label={job.job_type_label} tone={jobTypeTone(job.job_type)} />
+        {documentLabel ? <StatusChip label={documentLabel} tone="neutral" /> : null}
+      </View>
 
       <DetailBlock label={t('jobDetail.jobNo')}>
         <ThemedText type="smallBold">{job.job_no}</ThemedText>
       </DetailBlock>
 
-      {doNos.length ? (
-        <DetailBlock label={t('jobDetail.deliveryOrders')}>
-          <ThemedText type="small">{doNos.join(', ')}</ThemedText>
+      {documentLabel ? (
+        <DetailBlock label={t('jobDetail.document')}>
+          <ThemedText type="smallBold">{documentLabel}</ThemedText>
+          {job.document_status ? (
+            <ThemedText themeColor="textSecondary" type="small">
+              {t('jobDetail.documentStatus')}: {job.document_status}
+            </ThemedText>
+          ) : null}
+        </DetailBlock>
+      ) : null}
+
+      {secondaryDos.length ? (
+        <DetailBlock label={t('jobDetail.linkedDeliveryOrders')}>
+          <ThemedText type="small">{secondaryDos.join(', ')}</ThemedText>
         </DetailBlock>
       ) : null}
 
@@ -95,6 +112,9 @@ export function JobDetailSections({ job, stop, showActions = true }: Props) {
       {hasLineItems || job.items_description ? (
         <DetailBlock label={t('jobDetail.items')}>
           <JobLineItems job={job} />
+          <ThemedText themeColor="textSecondary" type="small">
+            {t('jobDetail.cargoReadOnlyHint')}
+          </ThemedText>
         </DetailBlock>
       ) : null}
 
@@ -110,15 +130,11 @@ export function JobDetailSections({ job, stop, showActions = true }: Props) {
         </DetailBlock>
       ) : null}
 
-      {stop?.actual_arrival ? (
-        <DetailBlock label={t('jobDetail.actualArrival')}>
-          <ThemedText type="small">{formatDateTime(stop.actual_arrival)}</ThemedText>
-        </DetailBlock>
-      ) : null}
-
-      {job.started_at ? (
+      {job.started_at || stop?.actual_arrival ? (
         <DetailBlock label={t('jobDetail.jobStarted')}>
-          <ThemedText type="small">{formatDateTime(job.started_at)}</ThemedText>
+          <ThemedText type="small">
+            {formatDateTime(job.started_at ?? stop?.actual_arrival ?? null)}
+          </ThemedText>
         </DetailBlock>
       ) : null}
 
@@ -126,6 +142,19 @@ export function JobDetailSections({ job, stop, showActions = true }: Props) {
         <DetailBlock label={t('jobDetail.jobCompleted')}>
           <ThemedText type="small">{formatDateTime(job.completed_at)}</ThemedText>
         </DetailBlock>
+      ) : null}
+
+      {hasPdf ? (
+        <Button
+          title={t('document.view')}
+          variant="secondary"
+          onPress={() => {
+            const qs = documentLabel
+              ? `?documentNo=${encodeURIComponent(documentLabel)}`
+              : '';
+            router.push(`/(app)/jobs/${job.id}/document${qs}` as Href);
+          }}
+        />
       ) : null}
 
       {actionsEnabled && (phone || hasNavigate) ? (
@@ -167,6 +196,7 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.two,
   },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   block: { gap: 2 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginTop: Spacing.one },
   actionBtn: { flexGrow: 1, minWidth: '30%' },
