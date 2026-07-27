@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { DrawerContentScrollView } from 'expo-router/drawer';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
@@ -49,6 +49,12 @@ export function AppDrawerContent(props: any) {
       contentContainerStyle={[styles.scroll, { backgroundColor: theme.backgroundElement }]}
     >
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <Image
+          source={require('@/assets/images/js-logo.png')}
+          style={styles.brandLogo}
+          resizeMode="contain"
+          accessibilityLabel="JS Group"
+        />
         <View style={[styles.avatar, { backgroundColor: theme.accent }]}>
           <ThemedText style={styles.avatarText}>{initialsFromName(driver?.name ?? user?.name)}</ThemedText>
         </View>
@@ -99,6 +105,12 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
     gap: Spacing.one,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  brandLogo: {
+    width: 140,
+    height: 126,
+    alignSelf: 'center',
+    marginBottom: Spacing.two,
   },
   avatar: {
     width: 56,

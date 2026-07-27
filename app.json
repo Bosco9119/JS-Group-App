@@ -4,12 +4,12 @@
     "slug": "JS-Group-App",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/js-logo.png",
     "scheme": "jsgroupapp",
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.jsgroup.mobile",
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/js-logo.png",
       "infoPlist": {
         "UIBackgroundModes": ["remote-notification"]
       }
@@ -17,25 +17,23 @@
     "android": {
       "package": "com.jsgroup.mobile",
       "adaptiveIcon": {
-        "backgroundColor": "#E8F0FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/js-logo.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/js-logo.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#3B82F6",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/images/js-logo.png",
+          "imageWidth": 200
         }
       ],
       "expo-secure-store",
@@ -56,8 +54,8 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
-          "color": "#3B82F6",
+          "icon": "./assets/images/js-logo.png",
+          "color": "#C9A227",
           "defaultChannel": "default"
         }
       ],

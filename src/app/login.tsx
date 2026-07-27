@@ -1,7 +1,7 @@
 import { Redirect, type Href } from 'expo-router';
 import { useState } from 'react';
 import {
-  ImageBackground,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -66,17 +66,15 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <ImageBackground
-        source={require('@/assets/images/android-icon-background.png')}
-        style={styles.hero}
-        imageStyle={styles.heroImage}
-      >
-        <View style={[styles.heroOverlay, { backgroundColor: 'rgba(59,130,246,0.78)' }]} />
-        <SafeAreaView edges={['top']}>
-          <ThemedText style={styles.heroBrand}>{t('login.brand')}</ThemedText>
-        </SafeAreaView>
-      </ImageBackground>
+    <View style={[styles.root, { backgroundColor: '#FFFFFF' }]}>
+      <SafeAreaView edges={['top']} style={styles.hero}>
+        <Image
+          source={require('@/assets/images/js-logo.png')}
+          style={styles.logo}
+          accessibilityLabel={t('login.brand')}
+          resizeMode="contain"
+        />
+      </SafeAreaView>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -158,23 +156,18 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   hero: {
-    height: 220,
-    justifyContent: 'flex-end',
-    padding: Spacing.four,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.two,
   },
-  heroImage: { resizeMode: 'cover' },
-  heroOverlay: {
-    ...StyleSheet.absoluteFill,
-  },
-  heroBrand: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: Spacing.three,
+  logo: {
+    width: 200,
+    height: 180,
   },
   sheetWrap: {
     flex: 1,
-    marginTop: -24,
   },
   sheet: {
     flexGrow: 1,

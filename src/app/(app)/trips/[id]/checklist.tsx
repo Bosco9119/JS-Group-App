@@ -184,7 +184,13 @@ export default function TripChecklistScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <AppHeader title={t('checklist.title')} showBack />
+      <AppHeader
+        title={t('checklist.title')}
+        showBack
+        onBack={() => {
+          router.replace(`/(app)/trips/${tripId}`);
+        }}
+      />
       {loading ? (
         <LoadingState label={t('checklist.loading')} />
       ) : (

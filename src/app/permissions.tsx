@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -76,6 +76,12 @@ export default function PermissionsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Image
+          source={require('@/assets/images/js-logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+          accessibilityLabel="JS Group"
+        />
         <ThemedText type="subtitle" style={styles.title}>
           {t('permissions.title')}
         </ThemedText>
@@ -135,6 +141,12 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     gap: Spacing.three,
     justifyContent: 'center',
+  },
+  logo: {
+    width: 160,
+    height: 144,
+    alignSelf: 'center',
+    marginBottom: Spacing.one,
   },
   title: { fontSize: 28, lineHeight: 34 },
   card: {

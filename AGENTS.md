@@ -20,9 +20,10 @@ That document includes:
 
 - What mobile has already implemented (phase 1)
 - Nested job / `line_items` / PDF contract
+- **Production deploy gap:** `GET …/source-document.pdf` missing on codespace host (linked DO ≠ missing route)
 - Product rule: stop complete ≠ DO delivered / RRI completed
 - Datetime/timezone wall-clock display (`Asia/Kuala_Lumpur`)
-- Backend follow-ups (today’s completed trips in inbox, ISO offsets, push)
+- Backend follow-ups (deploy PDF route, job meta fields, today’s completed trips, ISO offsets, push)
 
 ## Local config
 

@@ -5,6 +5,30 @@
 > Scope: **mobile client only** against **this** JS-Group Laravel backend (`/api/v1`). Do **not** invent self-registration.
 >
 > **Pre-trip checklist API is live** — see **“Pre-trip checklist”** below for screens, payloads, and Start Trip gates.
+>
+> **DO/RRI + PDF are live in this Laravel repo** — nested job includes `document_no` / `has_source_document_pdf` / rich `line_items`; open PDF via `GET …/source-document.pdf`. Completing a stop does **not** mark ERP DO/RRI delivered/completed. See **“Jobs, DO/RRI, and PDF”**.
+>
+> **Production host gap:** if `jsgroup.codespaceaitechnology.com` still returns “route could not be found” for the PDF URL, deploy this branch (controller + route already in repo).
+
+## Source document PDF (backend — this Laravel repo)
+
+Mobile **View Document** calls:
+
+```http
+GET /api/v1/transport/jobs/{transportJob}/source-document.pdf
+Authorization: Bearer {token}
+Accept: application/pdf
+```
+
+**Implemented here:**
+
+| Piece | Location |
+|---|---|
+| Controller | `App\Http\Controllers\Api\V1\TransportJobSourceDocumentController` |
+| Route | `api.v1.transport.jobs.source-document` → `GET …/source-document.pdf` |
+| Nested job meta | `document_no`, `document_status`, `source_type`, `source_id`, `has_source_document_pdf` via `FormatsDriverTripPayload` |
+
+Use nested transport **`job.id`** (not DO/RRI `source_id`). Optional `?download=1` for attachment. Show **View document** only when `has_source_document_pdf === true`.
 
 You are building a **driver-facing mobile client** that consumes the **existing** JS-Group Laravel backend API at `/api/v1`.
 
@@ -50,6 +74,7 @@ You are building a **driver-facing mobile client** that consumes the **existing*
 | Push / assignment requests / dynamic insert acknowledge | **Missing API** |
 | Helper pairing, vehicle picker | **Not on mobile API** |
 | Offline queue / sync protocol | **Partial**: `client_uuid` idempotency on photo upload only — no full offline trip sync API |
+| DO/RRI PDF on older production hosts | **Deploy this repo** if PDF route 404s — code is already in Laravel |
 
 **Day flow:** Drivers list today’s trips, complete the pre-trip checklist (all items pass), start the trip, complete stops, then end the trip (clock-out) once all stops are done.
 
@@ -150,7 +175,8 @@ Same `user` + `driver` shape. `403` if no linked driver. `401` if no/invalid tok
 | `GET` | `/api/v1/transport/jobs/{transportJob}/proof-photos` | List completion-proof photos |
 | `POST` | `/api/v1/transport/jobs/{transportJob}/proof-photos` | Upload 1–10 images (multipart) |
 | `DELETE` | `/api/v1/transport/jobs/{transportJob}/proof-photos/{tripPhoto}` | Delete one proof photo |
-| `POST` | `/api/v1/transport/stops/{tripStop}/clock-in` | Arrive at stop |
+| `GET` | `/api/v1/transport/jobs/{transportJob}/source-document.pdf` | On-demand DO/RRI PDF (`?download=1` for attachment) |
+| `POST` | `/api/v1/transport/stops/{tripStop}/clock-in` | Start job at stop |
 | `POST` | `/api/v1/transport/stops/{tripStop}/complete` | Complete stop with proof |
 
 Authorization: assigned linked driver of the trip (`driver_app.access` + matching `driver_id`) may act. Trip show/clock-in/clock-out use `DriverTripPolicy`. Failed/cancelled jobs deny proof manage.
@@ -164,11 +190,63 @@ Returns `{ "data": [ trip payloads ] }` for the authenticated driver’s own tri
 
 **Mobile note / backend ask:** completed trips for *today* currently disappear from this inbox. The app keeps a local cache after clock-out so Jobs can show **Completed**. Prefer the API also returning today’s `completed` trips (same assigned-driver scope) so the client cache is unnecessary.
 
-Each trip payload includes: `id`, `trip_no`, `status`, `status_label`, `planned_date`, `planned_start`, `planned_end`, `actual_start`, `actual_end`, `vehicle`, stop counts, `can_clock_in`, `all_stops_done`, `can_clock_out`, and `stops[]` (with nested `job` summary: job_no, type, customer, address, contacts, instructions).
+Each trip payload includes: `id`, `trip_no`, `status`, `status_label`, `planned_date`, `planned_start`, `planned_end`, `actual_start`, `actual_end`, `vehicle`, stop counts, nested `checklist`, `can_clock_in`, `all_stops_done`, `can_clock_out`, and `stops[]` with nested `job` (see **Jobs, DO/RRI, and PDF**).
 
 #### Trip show — `GET .../trips/{driverTrip}`
 
 Same trip payload shape for one trip. `403` if not the assigned driver (and not ERP editor).
+
+### Jobs, DO/RRI, and PDF (read this before building stop UI)
+
+**What to show on stop / job detail**
+
+1. Address, contact, special instructions (always).
+2. Document badge when linked: `document_no` + `job_type_label`. Prefer `document_no` over digging into `delivery_order_nos` for the primary label.
+3. **Cargo table** from `line_items` (empty for standalone — fall back to `items_description`).
+4. **View document** only when `has_source_document_pdf === true`.
+
+**Example — Delivery Order job (abbreviated `stops[].job`)**
+
+```json
+{
+  "id": 42,
+  "job_no": "TJ-2026070001",
+  "job_type": "delivery",
+  "job_type_label": "Delivery",
+  "status": "assigned",
+  "customer_name": "ACME SDN BHD",
+  "address_text": "12 Jalan Demo, KL",
+  "contact_person": "Receiver",
+  "contact_no": "0123456789",
+  "source_type": "delivery_order",
+  "source_id": 15,
+  "document_no": "DO26-07JSH001",
+  "document_status": "confirmed",
+  "has_source_document_pdf": true,
+  "delivery_order_nos": ["DO26-07JSH001"],
+  "line_items": [
+    {
+      "sku": "MF-5G10-25",
+      "name": "5'10\" Main Frame 2.5mm thk",
+      "qty": 10,
+      "uom": "pcs",
+      "packaging": "Bundle",
+      "condition": "new",
+      "description": "Taller main frame for scaffolding system, 2.5mm thickness"
+    }
+  ],
+  "latitude": 3.139,
+  "longitude": 101.6869
+}
+```
+
+**Standalone / no source:** `has_source_document_pdf: false`, empty `line_items` / `delivery_order_nos`, null document meta — use `items_description` only.
+
+| `job_type` | Typical source | PDF? |
+|---|---|---|
+| `delivery` | Delivery Order | Yes when linked |
+| `rental_return` | Rental Return In | Yes when linked |
+| `warehouse_transfer` / `standalone` | Often none | No (`has_source_document_pdf: false`) |
 
 #### Trip clock-in — `POST .../trips/{driverTrip}/clock-in`
 
@@ -206,6 +284,24 @@ Response `201`: `{ "data": [ proof payloads ] }`
 ```
 
 Only `completion_proof` photos belonging to that job.
+
+#### Source document PDF — `GET .../jobs/{transportJob}/source-document.pdf`
+
+On-demand Chromium PDF of the linked Delivery Order or Rental Return (same as ERP print). Never the empty handwriting RRI template. Draft DOs may show a DRAFT watermark.
+
+| Concern | Detail |
+|---|---|
+| Auth | Same Bearer token as other APIs |
+| When to call | Only if `has_source_document_pdf === true`; use nested `job.id` as `{transportJob}` |
+| Success | `200` body = raw PDF bytes; `Content-Type: application/pdf` |
+| Inline | Default → `Content-Disposition: inline` |
+| Download | `?download=1` → `Content-Disposition: attachment` |
+| Errors | `403` not your job; `404` no DO/RRI linked |
+| Freshness | Always regenerated from current ERP data |
+
+Suggested UX: primary **View document**; secondary **Download**. Show a loading state (Chromium can take a few seconds).
+
+**Reminder:** Completing the stop updates **transport** only. Office marks DO delivered / finishes RRI after qty checks.
 
 #### Stop clock-in — `POST .../stops/{tripStop}/clock-in`
 
@@ -249,8 +345,9 @@ If stop not yet arrived, backend **auto clock-in** then completes. Response incl
 2. **Home / trips inbox** — `GET /transport/trips`; pull-to-refresh; empty state when none assigned.
 3. **Trip detail** — `GET /transport/trips/{id}`; show checklist status; **Start trip** only when `can_clock_in`.
 4. **Pre-trip checklist** — `GET/PUT …/checklist` + optional `POST …/checklist/photos`; all 15 items must Pass.
-5. **Stop detail** — Arrive → clock-in; Complete → camera/library + optional signature → multipart complete; if last stop, prompt end-trip dialog.
+5. **Stop detail** — Arrive → clock-in; Complete → camera/library + optional signature → multipart complete; if last stop, prompt end-trip dialog. Show **View document** when `has_source_document_pdf`.
 6. **Job proofs** — gallery from GET; add/delete photos.
+7. **Document PDF** — `GET …/jobs/{job.id}/source-document.pdf` (Bearer); inline viewer or `?download=1`.
 
 ### Pre-trip checklist (mobile)
 
@@ -269,9 +366,9 @@ Do not build: registration, forgot-password (unless admin later adds API), ERP d
 ## Backend reference (JS-Group repo — do not reimplement)
 
 - Routes: `routes/api.php`
-- Controllers: `DriverAuthController`, `DriverTripController`, `VehicleChecklistController`, `TransportJobProofPhotoController`, `TripStopClockInController`, `TripStopCompleteController`
-- Services: `DriverUserAccountService`, `VehicleChecklistService`, `TransportJobProofService`, `DriverTripService`
-- Tests: `DriverMobileAuthTest`, `DriverMobileTripInboxTest`, `DriverMobileChecklistTest`, `TransportJobProofPhotoTest`
+- Controllers: `DriverAuthController`, `DriverTripController`, `VehicleChecklistController`, `TransportJobProofPhotoController`, `TransportJobSourceDocumentController`, `TripStopClockInController`, `TripStopCompleteController`
+- Services: `DriverUserAccountService`, `VehicleChecklistService`, `TransportJobProofService`, `DriverTripService`, `ChromiumPdfRenderer`, `DeliveryOrderPrintData`, `RentalReturnInPrintData`
+- Tests: `DriverMobileAuthTest`, `DriverMobileTripInboxTest`, `DriverMobileChecklistTest`, `TransportJobProofPhotoTest`, `TransportJobSourceDocumentPdfTest`
 
 ## Explicit out of scope for the mobile client repo
 
@@ -291,61 +388,27 @@ Do not build: registration, forgot-password (unless admin later adds API), ERP d
 - [x] Errors: 401 → re-login; 403 → show message; 422 → field errors
 - [x] Configurable API base via `EXPO_PUBLIC_API_URL` (default `http://localhost:8000/api/v1`; Android emulator `http://10.0.2.2:8000/api/v1`)
 - [x] Richer native trip/job detail UI (no portal deep links)
+- [x] View Document PDF when `has_source_document_pdf` (inline + download)
 
 ---
 
-## Backend request — richer job payload (driver mobile only)
+## Nested job payload (driver mobile) — implemented
 
-Mobile already consumes nested `job` on trip stop payloads from `GET /api/v1/transport/trips` and `GET /api/v1/transport/trips/{driverTrip}`. The app UI is ready for the fields below; **do not** expose portal URLs or web sessions to drivers.
-
-### Security (unchanged / required)
-
-- Same Sanctum Bearer `driver-app` token + `driver_app.access`
-- Trip/job/stop access only for the authenticated driver’s assigned `driver_id` (`DriverTripPolicy`)
-- Never return other drivers’ jobs, costing, payroll, or admin-only fields
-- Enrich **existing** trip show/inbox nested `job` JSON — no new public web pages for drivers
-
-### Add to nested `job` object (optional fields; omit when empty)
-
-```json
-{
-  "id": 1,
-  "job_no": "TJ-…",
-  "job_type": "delivery",
-  "job_type_label": "Delivery",
-  "status": "assigned",
-  "status_label": "Assigned",
-  "customer_name": "…",
-  "address_text": "…",
-  "contact_person": "…",
-  "contact_no": "+60…",
-  "items_description": "…",
-  "special_instructions": "…",
-  "started_at": null,
-  "completed_at": null,
-
-  "delivery_order_nos": ["DO-2026070001", "DO-2026070002"],
-  "line_items": [
-    { "sku": "MF-5G7-25", "name": "Main Frame 5'7\" 2.5mm", "qty": 10, "uom": "pcs" }
-  ],
-  "latitude": 3.1390,
-  "longitude": 101.6869
-}
-```
+Same Sanctum Bearer + assigned-driver scope. Enrichment is on existing trip inbox/show nested `job` — no portal URLs.
 
 | Field | Type | Purpose |
 |---|---|---|
-| `delivery_order_nos` | `string[]` | Driver-facing DO / booking refs for this job |
-| `line_items[]` | array | Structured cargo; each: `sku?`, `name`, `qty`, `uom?` |
-| `latitude` / `longitude` | `number\|null` | Site pin for Maps when address is weak |
+| `source_type` | `delivery_order` \| `rental_return_in` \| null | Linked ERP document kind |
+| `source_id` | `int\|null` | DO/RRI id (not for PDF URL) |
+| `document_no` | `string\|null` | Primary badge (DO no / RRI return no) |
+| `document_status` | `string\|null` | ERP status value |
+| `has_source_document_pdf` | `bool` | Gate for View Document |
+| `delivery_order_nos` | `string[]` | DO nos (RRI may include linked DO) |
+| `line_items[]` | array | Cargo; DO adds packaging/condition/description; RRI adds quantity_expected/good/repair/damage/scrap |
+| `latitude` / `longitude` | `number\|null` | Site pin |
 
-### Also keep / ensure populated on assignment
-
-- `items_description`, `special_instructions`, `contact_person`, `contact_no`, `address_text`
-- Stop `planned_arrival` / `actual_arrival` (already on stop)
-
-### Not requested
+### Not exposed
 
 - “View on website” links
 - Admin/ERP session cookie auth for mobile
-- Returning unassigned or other drivers’ jobs
+- Other drivers’ jobs / costing / payroll

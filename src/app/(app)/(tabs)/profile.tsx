@@ -33,7 +33,11 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <AppHeader title={t('nav.profile')} />
+      <AppHeader
+        title={t('nav.profile')}
+        showBell
+        onBellPress={() => router.push('/(app)/(tabs)/notifications')}
+      />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
           <View style={[styles.avatar, { backgroundColor: theme.accent }]}>

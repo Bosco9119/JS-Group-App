@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -28,7 +28,10 @@ export default function JobProofsScreen() {
     stopId?: string;
   }>();
   const numericJobId = Number(jobId);
+  const linkedTripId = tripId ? Number(tripId) : null;
+  const linkedStopId = stopId ? Number(stopId) : null;
   const theme = useTheme();
+  const router = useRouter();
   const { t } = useAppTranslation();
   const [photos, setPhotos] = useState<ProofPhoto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +119,21 @@ export default function JobProofsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <AppHeader title={t('proofs.title')} showBack />
+      <AppHeader
+        title={t('proofs.title')}
+        showBack
+        onBack={() => {
+          if (linkedTripId && linkedStopId) {
+            router.replace(`/(app)/stops/${linkedStopId}?tripId=${linkedTripId}`);
+            return;
+          }
+          if (linkedTripId) {
+            router.replace(`/(app)/trips/${linkedTripId}`);
+            return;
+          }
+          if (router.canGoBack()) router.back();
+        }}
+      />
       {loading ? (
         <LoadingState label={t('proofs.loading')} />
       ) : (

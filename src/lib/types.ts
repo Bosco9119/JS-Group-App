@@ -27,6 +27,14 @@ export type JobLineItem = {
   name: string;
   qty: number | string;
   uom?: string | null;
+  packaging?: string | null;
+  condition?: string | null;
+  description?: string | null;
+  quantity_expected?: number | string | null;
+  quantity_good?: number | string | null;
+  quantity_repair?: number | string | null;
+  quantity_damage?: number | string | null;
+  quantity_scrap?: number | string | null;
 };
 
 export type JobSummary = {
@@ -49,6 +57,11 @@ export type JobSummary = {
   line_items?: JobLineItem[] | null;
   latitude?: number | null;
   longitude?: number | null;
+  document_no?: string | null;
+  document_status?: string | null;
+  has_source_document_pdf?: boolean | null;
+  source_type?: string | null;
+  source_id?: number | null;
 };
 
 export type TripStopSummary = {

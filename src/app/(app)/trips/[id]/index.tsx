@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
+import { CardSection } from '@/components/card-section';
 import { JobLineItems } from '@/components/job-line-items';
 import { StatusChip, isStopFinished, statusTone } from '@/components/status-chip';
 import { ThemedText } from '@/components/themed-text';
@@ -201,45 +202,49 @@ export default function TripDetailScreen() {
               { backgroundColor: theme.backgroundElement, borderColor: theme.border },
             ]}
           >
-            <ThemedText type="smallBold">{trip.trip_no}</ThemedText>
-            <ThemedText themeColor="textSecondary" type="small">
-              {t('trips.vehicle')}: {vehicleLabel(trip.vehicle)}
-            </ThemedText>
-            <ThemedText themeColor="textSecondary" type="small">
-              {[
-                trip.planned_date ? formatDate(trip.planned_date) : null,
-                formatTimeRange(trip.planned_start, trip.planned_end),
-              ]
-                .filter((part) => part && part !== '—')
-                .join(' · ')}
-            </ThemedText>
-            {trip.actual_start ? (
+            <CardSection first>
+              <ThemedText type="smallBold">{trip.trip_no}</ThemedText>
               <ThemedText themeColor="textSecondary" type="small">
-                {t('trips.actualStart', { at: formatDateTime(trip.actual_start) })}
+                {t('trips.vehicle')}: {vehicleLabel(trip.vehicle)}
               </ThemedText>
-            ) : null}
-            {trip.actual_end ? (
               <ThemedText themeColor="textSecondary" type="small">
-                {t('trips.actualEnd', { at: formatDateTime(trip.actual_end) })}
+                {[
+                  trip.planned_date ? formatDate(trip.planned_date) : null,
+                  formatTimeRange(trip.planned_start, trip.planned_end),
+                ]
+                  .filter((part) => part && part !== '—')
+                  .join(' · ')}
               </ThemedText>
-            ) : null}
+              {trip.actual_start ? (
+                <ThemedText themeColor="textSecondary" type="small">
+                  {t('trips.actualStart', { at: formatDateTime(trip.actual_start) })}
+                </ThemedText>
+              ) : null}
+              {trip.actual_end ? (
+                <ThemedText themeColor="textSecondary" type="small">
+                  {t('trips.actualEnd', { at: formatDateTime(trip.actual_end) })}
+                </ThemedText>
+              ) : null}
+            </CardSection>
             {trip.notes && !isDemoNotes(trip.notes) ? (
-              <View style={styles.notesBlock}>
+              <CardSection>
                 <ThemedText type="smallBold">{t('trips.tripNotes')}</ThemedText>
                 <ThemedText themeColor="textSecondary" type="small">
                   {trip.notes}
                 </ThemedText>
-              </View>
+              </CardSection>
             ) : null}
-            <View style={styles.stats}>
-              <Stat
-                label={t('trips.stops')}
-                value={(() => {
-                  const { done, total } = countCompletedStops(trip);
-                  return `${done}/${total}`;
-                })()}
-              />
-            </View>
+            <CardSection>
+              <View style={styles.stats}>
+                <Stat
+                  label={t('trips.stops')}
+                  value={(() => {
+                    const { done, total } = countCompletedStops(trip);
+                    return `${done}/${total}`;
+                  })()}
+                />
+              </View>
+            </CardSection>
           </View>
 
           {trip.status === 'planned' && !trip.can_clock_in ? (
@@ -303,6 +308,7 @@ export default function TripDetailScreen() {
             <Button title={t('trips.startTrip')} loading={starting} onPress={() => void onStartTrip()} />
           ) : null}
 
+          {/* Blue "Start next job" banner removed — use Start Job on the pending stop card instead.
           {trip.status === 'in_progress' && nextStartableStop(trip) ? (
             <View
               style={[
@@ -330,6 +336,7 @@ export default function TripDetailScreen() {
               />
             </View>
           ) : null}
+          */}
 
           {tripReadyToEnd(trip) ? (
             <Button title={t('trips.endTrip')} loading={ending} onPress={() => void onEndTripPress()} />
@@ -361,6 +368,8 @@ export default function TripDetailScreen() {
               latitude: job?.latitude,
               longitude: job?.longitude,
             };
+            const hasLocation = Boolean(job?.customer_name || job?.address_text);
+            const hasCargo = Boolean(job && (jobLineItems(job).length || job.items_description));
             return (
               <View
                 key={stop.id}
@@ -374,27 +383,33 @@ export default function TripDetailScreen() {
                     router.push(`/(app)/stops/${stop.id}?tripId=${trip.id}`)
                   }
                 >
-                  <View style={styles.row}>
-                    <ThemedText type="smallBold" style={{ flex: 1 }}>
-                      #{stop.sequence} · {job?.job_no ?? stop.stop_type_label}
-                    </ThemedText>
-                    <StatusChip
-                      label={statusLabel(t, stop.status, stop.status_label)}
-                      tone={statusTone(stop.status)}
-                    />
-                  </View>
-                  {job?.customer_name ? (
-                    <ThemedText type="small">{job.customer_name}</ThemedText>
-                  ) : null}
-                  {job?.address_text ? (
-                    <ThemedText themeColor="textSecondary" type="small" numberOfLines={2}>
-                      {job.address_text}
-                    </ThemedText>
-                  ) : null}
-                  {jobLineItems(job).length || job?.items_description ? (
-                    <View style={{ marginTop: Spacing.one }}>
-                      <JobLineItems job={job} maxItems={4} compact showHeading />
+                  <CardSection first>
+                    <View style={styles.row}>
+                      <ThemedText type="smallBold" style={{ flex: 1 }}>
+                        #{stop.sequence} · {job?.job_no ?? stop.stop_type_label}
+                      </ThemedText>
+                      <StatusChip
+                        label={statusLabel(t, stop.status, stop.status_label)}
+                        tone={statusTone(stop.status)}
+                      />
                     </View>
+                  </CardSection>
+                  {hasLocation ? (
+                    <CardSection>
+                      {job?.customer_name ? (
+                        <ThemedText type="small">{job.customer_name}</ThemedText>
+                      ) : null}
+                      {job?.address_text ? (
+                        <ThemedText themeColor="textSecondary" type="small" numberOfLines={2}>
+                          {job.address_text}
+                        </ThemedText>
+                      ) : null}
+                    </CardSection>
+                  ) : null}
+                  {hasCargo ? (
+                    <CardSection>
+                      <JobLineItems job={job} maxItems={4} compact showHeading />
+                    </CardSection>
                   ) : null}
                   <ThemedText type="small" style={{ color: theme.accent, marginTop: Spacing.one }}>
                     {t('jobDetail.viewDetails')}
@@ -453,8 +468,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     alignItems: 'center',
   },
-  notesBlock: { gap: 2, marginTop: Spacing.one },
-  stats: { flexDirection: 'row', gap: Spacing.three, marginTop: Spacing.two },
+  stats: { flexDirection: 'row', gap: Spacing.three },
   banner: {
     borderWidth: 1,
     borderRadius: Radius,

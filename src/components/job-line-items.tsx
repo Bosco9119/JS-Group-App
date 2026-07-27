@@ -3,11 +3,13 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useAppTranslation } from '@/context/locale';
+import { useTheme } from '@/hooks/use-theme';
 import {
   formatItemQty,
   formatItemQtyLabel,
   isRentalReturnJob,
   jobLineItems,
+  lineItemDisplay,
 } from '@/lib/job-items';
 import type { JobLineItem, JobSummary } from '@/lib/types';
 
@@ -27,6 +29,14 @@ function MetaLine({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ItemDivider({ first }: { first: boolean }) {
+  const theme = useTheme();
+  if (first) return null;
+  return (
+    <View style={[styles.itemDivider, { backgroundColor: theme.border }]} />
+  );
+}
+
 function FullLineItem({
   item,
   isRri,
@@ -35,31 +45,32 @@ function FullLineItem({
   isRri: boolean;
 }) {
   const { t } = useAppTranslation();
+  const display = lineItemDisplay(item);
 
   return (
     <View style={styles.itemBlock}>
       <View style={styles.row}>
         <View style={styles.nameCol}>
-          {item.sku ? (
+          {display.sku ? (
             <ThemedText themeColor="textSecondary" type="small" numberOfLines={1}>
-              {item.sku}
+              {display.sku}
             </ThemedText>
           ) : null}
-          <ThemedText type="small">{item.name}</ThemedText>
+          <ThemedText type="small">{display.name}</ThemedText>
         </View>
         <ThemedText type="smallBold" style={styles.qty}>
           {formatItemQtyLabel(item)}
         </ThemedText>
       </View>
 
-      {!isRri && item.packaging ? (
-        <MetaLine label={t('jobDetail.packaging')} value={item.packaging} />
+      {!isRri && display.packaging ? (
+        <MetaLine label={t('jobDetail.packaging')} value={display.packaging} />
       ) : null}
-      {!isRri && item.condition ? (
-        <MetaLine label={t('jobDetail.condition')} value={item.condition} />
+      {!isRri && display.condition ? (
+        <MetaLine label={t('jobDetail.condition')} value={display.condition} />
       ) : null}
-      {item.description ? (
-        <MetaLine label={t('jobDetail.itemDescription')} value={item.description} />
+      {display.description ? (
+        <MetaLine label={t('jobDetail.itemDescription')} value={display.description} />
       ) : null}
 
       {isRri ? (
@@ -113,27 +124,33 @@ export function JobLineItems({ job, maxItems, showHeading = false, compact = fal
           {t('jobDetail.items')}
         </ThemedText>
       ) : null}
-      {visible.map((item, index) =>
-        compact ? (
-          <View key={`${item.sku ?? item.name}-${index}`} style={styles.row}>
-            <View style={styles.nameCol}>
-              {item.sku ? (
-                <ThemedText themeColor="textSecondary" type="small" numberOfLines={1}>
-                  {item.sku}
+      {visible.map((item, index) => {
+        const display = lineItemDisplay(item);
+        return (
+          <View key={`${item.sku ?? item.name}-${index}`}>
+            <ItemDivider first={index === 0} />
+            {compact ? (
+              <View style={styles.row}>
+                <View style={styles.nameCol}>
+                  {display.sku ? (
+                    <ThemedText themeColor="textSecondary" type="small" numberOfLines={1}>
+                      {display.sku}
+                    </ThemedText>
+                  ) : null}
+                  <ThemedText type="small" numberOfLines={2}>
+                    {display.name}
+                  </ThemedText>
+                </View>
+                <ThemedText type="smallBold" style={styles.qty}>
+                  {formatItemQtyLabel(item)}
                 </ThemedText>
-              ) : null}
-              <ThemedText type="small" numberOfLines={2}>
-                {item.name}
-              </ThemedText>
-            </View>
-            <ThemedText type="smallBold" style={styles.qty}>
-              {formatItemQtyLabel(item)}
-            </ThemedText>
+              </View>
+            ) : (
+              <FullLineItem item={item} isRri={isRri} />
+            )}
           </View>
-        ) : (
-          <FullLineItem key={`${item.sku ?? item.name}-${index}`} item={item} isRri={isRri} />
-        ),
-      )}
+        );
+      })}
       {hidden > 0 ? (
         <ThemedText themeColor="textSecondary" type="small">
           {t('jobDetail.moreItems', { count: hidden })}
@@ -145,6 +162,10 @@ export function JobLineItems({ job, maxItems, showHeading = false, compact = fal
 
 const styles = StyleSheet.create({
   wrap: { gap: Spacing.two },
+  itemDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginBottom: Spacing.two,
+  },
   itemBlock: { gap: Spacing.one },
   row: {
     flexDirection: 'row',

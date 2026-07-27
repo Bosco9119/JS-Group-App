@@ -61,7 +61,12 @@ export default function MapScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <AppHeader title={trip?.trip_no ?? t('nav.map')} showBack={false} />
+      <AppHeader
+        title={trip?.trip_no ?? t('nav.map')}
+        showBack={false}
+        showBell
+        onBellPress={() => router.push('/(app)/(tabs)/notifications')}
+      />
       {loading ? (
         <LoadingState label={t('trips.loading')} />
       ) : (

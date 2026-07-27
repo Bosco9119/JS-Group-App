@@ -64,7 +64,11 @@ export default function JobsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <AppHeader title={t('nav.jobs')} />
+      <AppHeader
+        title={t('nav.jobs')}
+        showBell
+        onBellPress={() => router.push('/(app)/(tabs)/notifications')}
+      />
       <View style={styles.filters}>
         {filters.map((item) => {
           const selected = filter === item.key;

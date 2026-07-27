@@ -54,7 +54,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <AppHeader title={t('nav.notifications')} />
+      <AppHeader title={t('nav.notifications')} showBack />
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText themeColor="textSecondary" type="small">
           {t('notifications.stubHint')}

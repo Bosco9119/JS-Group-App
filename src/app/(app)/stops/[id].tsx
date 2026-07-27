@@ -218,11 +218,22 @@ export default function StopDetailScreen() {
     }
   }
 
+  const goToTrip = useCallback(() => {
+    if (linkedTripId) {
+      router.replace(`/(app)/trips/${linkedTripId}`);
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+    }
+  }, [linkedTripId, router]);
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <AppHeader
         title={stop?.job?.job_no ?? t('stops.title')}
         showBack
+        onBack={goToTrip}
         right={
           stop ? (
             <StatusChip
@@ -238,7 +249,7 @@ export default function StopDetailScreen() {
       ) : !stop ? (
         <View style={styles.padded}>
           <ErrorBanner message={error ?? t('stops.notFound')} />
-          <Button title={t('common.goBack')} variant="secondary" onPress={() => router.back()} />
+          <Button title={t('common.goBack')} variant="secondary" onPress={goToTrip} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.padded}>

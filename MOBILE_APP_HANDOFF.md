@@ -10,6 +10,70 @@
 > **Pre-trip checklist API is live** — mobile gates Start Trip on `can_clock_in` / checklist all pass.
 >
 > **DO/RRI on stops is live** — trip/job payloads include line items + source document meta; mobile opens on-demand PDF (Bearer → cache → WebView + share/download). Completing a stop does **not** mark the ERP Delivery Order / Rental Return as delivered/completed (office does that).
+>
+> **Action required on production (2026-07-24):** `GET /api/v1/transport/jobs/{id}/source-document.pdf` is implemented in the Laravel repo but **not deployed** on `jsgroup.codespaceaitechnology.com`. Drivers see linked DO numbers (e.g. TJ-2026070003 → DO26-07JSH004) but PDF open fails with Laravel “route could not be found”. **Deploy the route + controller before mobile PDF will work against that host.** See [Production deploy gap — source document PDF](#production-deploy-gap--source-document-pdf).
+
+---
+
+## Production deploy gap — source document PDF
+
+Verified against live API (`EXPO_PUBLIC_API_URL=https://jsgroup.codespaceaitechnology.com/api/v1`) with `driver1@jsgroup.com`:
+
+| Check | Result |
+|---|---|
+| Trip job `TJ-2026070003` (`job.id` = **52**) | Present; `job_type` = `rental_return` |
+| `delivery_order_nos` | `["DO26-07JSH004"]` — **document is linked** |
+| Nested meta: `document_no`, `document_status`, `source_type`, `source_id`, `has_source_document_pdf` | **Missing** from live trip payload (local Laravel `FormatsDriverTripPayload` may also still omit these — add them) |
+| `GET /api/v1/transport/jobs/52/source-document.pdf` | **404** — `"The route api/v1/transport/jobs/52/source-document.pdf could not be found."` |
+
+This is **not** “job has no DO/RRI”. The morph/link exists (cargo + `delivery_order_nos`). Production simply does not register the PDF route yet.
+
+### What to deploy on the website / Laravel server
+
+1. **Route** (already in local `routes/api.php` under Sanctum `driver-app`):
+
+```php
+Route::get('transport/jobs/{transportJob}/source-document.pdf', [TransportJobSourceDocumentController::class, 'show'])
+    ->name('api.v1.transport.jobs.source-document');
+```
+
+2. **Controller** — `App\Http\Controllers\Api\V1\TransportJobSourceDocumentController`  
+   - Authorize assigned driver via `TransportJobPolicy::view`  
+   - Resolve `$transportJob->sourceable`  
+   - If `DeliveryOrder` or `RentalReturnIn` → Chromium PDF (same print views as ERP)  
+   - Else → **404** with message like “This job has no linked delivery order or rental return document.”  
+   - Optional `?download=1` → `Content-Disposition: attachment`
+
+3. **After deploy, confirm:**
+
+```http
+GET /api/v1/transport/jobs/52/source-document.pdf
+Authorization: Bearer {driver-app token}
+Accept: application/pdf
+```
+
+Expect `200` + `Content-Type: application/pdf` (not a JSON “route could not be found”).
+
+4. **Also ship nested job meta** in `FormatsDriverTripPayload::jobPayload` (mobile + handoff already expect these):
+
+| Field | Rule |
+|---|---|
+| `source_type` | `delivery_order` \| `rental_return_in` \| `null` |
+| `source_id` | morph id or `null` |
+| `document_no` | DO `delivery_no` or RRI `return_no` |
+| `document_status` | source status or `null` |
+| `has_source_document_pdf` | `true` when source is DO or RRI |
+
+Until (4) is live, mobile still shows **View document** when `delivery_order_nos` is non-empty or job type is delivery / rental return (fallback). Prefer the explicit flag once deployed.
+
+### Error semantics mobile already handles
+
+| HTTP / body | Driver-facing meaning |
+|---|---|
+| `404` + message contains `route … could not be found` | PDF **API not deployed** (ops/deploy issue) |
+| `404` + “no linked delivery order or rental return” | Job truly has no printable source |
+| `403` | Not this driver’s job |
+| `200` + PDF bytes | Open in WebView + share/Download |
 
 ---
 
@@ -23,9 +87,10 @@ Phase-1 driver UX is shipped in the Expo app. Gaps are only under **Blocked** / 
 | Today’s trip inbox + Home | Done | Labels: Next job / **Current trip** / Today’s trip |
 | Trip detail + Start / End | Done | Checklist gate; end when all stops terminal |
 | Pre-trip checklist (15 items) + photos | Done | Read-only after trip start |
-| Stop arrive / complete + POD | Done | ≥1 photo; optional signature; geo; `client_uuid` |
+| Stop arrive / complete + POD | Done | ≥1 photo; optional signature; geo; `client_uuid`. UI: **Start job** / **Complete job** |
 | Cargo `line_items` (DO + RRI) | Done | DO packaging/condition; RRI good/repair/damage/scrap always shown (read-only) |
-| Document badge + PDF View/Download | Done | Route `jobs/[jobId]/document`; only if `has_source_document_pdf` |
+| Document badge + PDF View/Download | Done (client) | **Blocked on production** until PDF route is deployed (see deploy gap). UI: View when flag / linked DO nos / DO·RRI job type; else “No document PDF available” |
+| Stop **Start job** / Complete | Done | UI label **Start job** = stop clock-in (commission start). **Complete job** = POD clock-out. Next job does not auto-start; prompt or trip **Start next job** |
 | Proof gallery | Done | List / upload / delete |
 | i18n | Done | en / zh / ms |
 | Push / assignment ack | Stub only | **No API yet** |
@@ -62,8 +127,10 @@ Mobile displays API date/times as **wall-clock digits** from the string (same sp
 
 1. **Completed trips missing from inbox** — `GET /transport/trips` omits `completed`. Mobile merges a **local same-day cache** after clock-out so Home/Jobs can still show Completed. Prefer API to include **today’s completed** trips for the assigned driver when convenient.
 2. **PDF auth** — WebView cannot send Bearer headers. Mobile downloads `GET …/jobs/{id}/source-document.pdf` with Sanctum into cache, then opens locally (+ share sheet for Download).
-3. **Expo Go Android** — push via `expo-notifications` is avoided on Expo Go Android; use a custom/dev client for real push later.
-4. **Standalone / no source** — `line_items: []`, `has_source_document_pdf: false`; UI falls back to `items_description`.
+3. **PDF route missing on some hosts** — if Laravel returns “route could not be found”, mobile shows a deploy-oriented error (not “no DO linked”). See [Production deploy gap](#production-deploy-gap--source-document-pdf).
+4. **Expo Go Android** — push via `expo-notifications` is avoided on Expo Go Android; use a custom/dev client for real push later.
+5. **Standalone / no source** — `line_items: []`, `has_source_document_pdf: false`; UI falls back to `items_description` and shows “No document PDF available”.
+6. **Missing `has_source_document_pdf` on older payloads** — mobile treats non-empty `delivery_order_nos` or delivery / rental_return job type as PDF-capable until the flag is always present.
 
 ---
 
@@ -72,7 +139,8 @@ Mobile displays API date/times as **wall-clock digits** from the string (same sp
 When changing transport APIs, keep mobile working:
 
 - [ ] Nested `job` still includes: `document_no`, `document_status`, `source_type`, `source_id`, `has_source_document_pdf`, `delivery_order_nos`, `line_items` (DO + RRI shapes), `latitude` / `longitude`
-- [ ] PDF route remains Bearer-auth binary PDF on **transport job id** (`job.id`), not `source_id`
+- [ ] **PDF route is registered and deployed:** `GET /api/v1/transport/jobs/{transportJob}/source-document.pdf` (Bearer → binary PDF). Confirm with a real linked job (e.g. RRI with `delivery_order_nos`) — must not return “route could not be found”
+- [ ] PDF uses nested **transport `job.id`**, not `source_id`
 - [ ] Stop complete still does **not** auto-close DO/RRI
 - [ ] Checklist still exactly 15 keys; `can_clock_in` only when planned + all passed
 - [ ] Prefer datetime serialization that matches Malaysia wall clock (see timezone section)
@@ -112,10 +180,10 @@ You are maintaining the **Laravel `/api/v1` driver API** consumed by the Expo dr
 4. **Trip detail** — `GET /transport/trips/{driverTrip}` (stops + job + nested `checklist`).
 5. **Pre-trip checklist** — all items must pass before Start Trip (`can_clock_in`).
 6. **Start trip** — `POST …/clock-in` (`planned` → `in_progress`); `422` if checklist incomplete.
-7. **Arrive at stop** — `POST …/stops/{tripStop}/clock-in`.
-8. **Stop detail / cargo** — `job.line_items` + `document_no`; read-only qty.
-9. **View DO/RRI PDF** — when `has_source_document_pdf === true`.
-10. **Complete stop / POD** — ≥1 photo multipart; optional signature, received-by, notes, geo, `client_uuid`.
+7. **Start job (stop clock-in)** — `POST …/stops/{tripStop}/clock-in` (commission start). UI: **Start job**.
+8. **Stop detail / cargo** — `job.line_items` + document / linked DO nos; read-only qty.
+9. **View DO/RRI PDF** — when linked (`has_source_document_pdf` / `delivery_order_nos` / DO·RRI type). Requires deployed `source-document.pdf` route.
+10. **Complete stop / POD** — ≥1 photo multipart; optional signature, received-by, notes, geo, `client_uuid`. Next job does not auto-start.
 11. **End trip** — dialog → `POST …/clock-out` when all stops terminal.
 12. **Proof gallery** — list / upload / delete completion-proof photos.
 
@@ -127,6 +195,7 @@ You are maintaining the **Laravel `/api/v1` driver API** consumed by the Expo dr
 | Helper pairing, vehicle picker | **Not on mobile API** |
 | Edit DO/RRI line qty from the app | **Out of scope** (ERP only) |
 | Offline queue / sync protocol | **Partial**: `client_uuid` idempotency on photo upload only |
+| DO/RRI PDF on production host | **Deploy gap** — route not registered on codespace host (see § Production deploy gap) |
 
 **Day flow:** checklist → start trip → stops (cargo + optional PDF) → end trip. Stop clock-in/complete require trip `in_progress`. Clock-out requires all stops `completed` / `skipped` / `failed`.
 
@@ -237,7 +306,7 @@ Same `user` + `driver` shape. `403` if no linked driver. `401` if no/invalid tok
 | `POST` | `/api/v1/transport/jobs/{transportJob}/proof-photos` | Upload 1–10 images (multipart) |
 | `DELETE` | `/api/v1/transport/jobs/{transportJob}/proof-photos/{tripPhoto}` | Delete one proof photo |
 | `GET` | `/api/v1/transport/jobs/{transportJob}/source-document.pdf` | On-demand DO/RRI PDF (`?download=1` for attachment) |
-| `POST` | `/api/v1/transport/stops/{tripStop}/clock-in` | Arrive at stop |
+| `POST` | `/api/v1/transport/stops/{tripStop}/clock-in` | Start job at stop (status → arrived; job → in_progress) |
 | `POST` | `/api/v1/transport/stops/{tripStop}/complete` | Complete stop with proof |
 
 Authorization: assigned linked driver of the trip (`driver_app.access` + matching `driver_id`) may act. Trip show/clock-in/clock-out use `DriverTripPolicy`. Failed/cancelled jobs deny proof manage.
@@ -265,7 +334,7 @@ Each trip payload includes: `id`, `trip_no`, `status`, `status_label`, `planned_
 | `document_status` | Source document status value, or `null` |
 | `has_source_document_pdf` | `true` when source is DO or RRI (use PDF endpoint below) |
 | `delivery_order_nos` | `string[]` — DO `delivery_no` when morph source is a Delivery Order; linked DO no. when source is RRI with `delivery_order_id`; else `[]` |
-| `line_items` | From source DO/RRI (`sku` from `product.sku_code`); `[]` for standalone. **DO:** `{ sku?, name, qty, uom?, packaging?, condition?, description? }`. **RRI:** `{ sku?, name, qty, uom?, description?, quantity_expected, quantity_good, quantity_repair, quantity_damage, quantity_scrap }` (`qty` = expected) |
+| `line_items` | From source DO/RRI (`sku` from `product.sku_code`, `name` from `product.name` with fallback to DO/RRI item code); `[]` for standalone. **DO:** `{ sku?, name, qty, uom?, packaging?, condition?, description? }`. **RRI:** `{ sku?, name, qty, uom?, description?, quantity_expected, quantity_good, quantity_repair, quantity_damage, quantity_scrap }` (`qty` = expected) |
 | `latitude`, `longitude` | Site pin from stop-scoped `CustomerAddress`; `null` when missing |
 
 Built by `FormatsDriverTripPayload` (`app/Http/Controllers/Api/V1/Concerns/FormatsDriverTripPayload.php`). No portal URLs.
@@ -277,7 +346,7 @@ Built by `FormatsDriverTripPayload` (`app/Http/Controllers/Api/V1/Concerns/Forma
 1. Address, contact, special instructions (always).
 2. Document badge when linked: `document_no` + `job_type_label` (e.g. Delivery / Rental return). Prefer `document_no` over digging into `delivery_order_nos` for the primary label; keep `delivery_order_nos` as secondary (RRI may list a linked DO number).
 3. **Cargo table** from `line_items` (empty for standalone jobs — fall back to `items_description` text).
-4. **View document** button only when `has_source_document_pdf === true`.
+4. **View document** button when `has_source_document_pdf === true`, or (fallback) non-empty `delivery_order_nos` / delivery·rental_return job type. Requires deployed PDF route on the API host.
 
 **Example — Delivery Order job (abbreviated `stops[].job`)**
 
@@ -300,13 +369,13 @@ Built by `FormatsDriverTripPayload` (`app/Http/Controllers/Api/V1/Concerns/Forma
   "delivery_order_nos": ["DO26-07JSH001"],
   "line_items": [
     {
-      "sku": "MF-5G7-25",
-      "name": "Main Frame 5'7\" 2.5mm",
+      "sku": "MF-5G10-25",
+      "name": "5'10\" Main Frame 2.5mm thk",
       "qty": 10,
       "uom": "pcs",
       "packaging": "Bundle",
       "condition": "new",
-      "description": "Site A frame"
+      "description": "Taller main frame for scaffolding system, 2.5mm thickness"
     }
   ],
   "latitude": 3.139,
@@ -318,8 +387,8 @@ Built by `FormatsDriverTripPayload` (`app/Http/Controllers/Api/V1/Concerns/Forma
 
 ```json
 {
-  "sku": "MF-5G7-25",
-  "name": "Main Frame 5'7\" 2.5mm",
+  "sku": "MF-5G10-25",
+  "name": "5'10\" Main Frame 2.5mm thk",
   "qty": 10,
   "uom": "pcs",
   "description": null,
@@ -353,19 +422,23 @@ Use `items_description` / `special_instructions` only.
 
 On-demand Chromium PDF of the linked DO or RRI (same layout as ERP print). **Never** the empty handwriting RRI template. Draft DOs may show a DRAFT watermark (same as ERP).
 
+> **Deploy gate:** This route must exist on the host the mobile app points at (`EXPO_PUBLIC_API_URL`). If missing, Laravel returns JSON `404` “route … could not be found” even when `delivery_order_nos` is populated. See [Production deploy gap](#production-deploy-gap--source-document-pdf).
+
 | Concern | Detail |
 |---|---|
-| Auth | Same Bearer token as other APIs |
-| When to call | Only if `has_source_document_pdf === true`; use nested `job.id` as `{transportJob}` |
+| Auth | Same Bearer token as other APIs (`ability:driver-app`) |
+| Route (exact) | `GET /api/v1/transport/jobs/{transportJob}/source-document.pdf` |
+| Controller | `TransportJobSourceDocumentController@show` |
+| When to call | Prefer `has_source_document_pdf === true`; use nested `job.id` as `{transportJob}`. Mobile also opens when `delivery_order_nos` is non-empty (fallback for older payloads) |
 | Success | `200` body = raw PDF bytes; `Content-Type: application/pdf` |
-| Inline viewer | Default (no query) → `Content-Disposition: inline` — open in WebView / system PDF viewer |
+| Inline viewer | Default (no query) → `Content-Disposition: inline` |
 | Download | `?download=1` → `Content-Disposition: attachment; filename="..."` |
-| Errors | `403` not your job; `404` no DO/RRI linked (or job missing) |
+| Errors | `403` not your job; `404` no DO/RRI morph linked; **route missing** → JSON “route could not be found” (deploy issue) |
 | Freshness | Always regenerated from current ERP data — no stale cached file |
 
 Suggested UX: primary **View document**; secondary **Download**. Show a loading state (Chromium can take a few seconds). On weak networks, prefer fetch-on-tap rather than preloading every stop’s PDF.
 
-**Mobile client behaviour (implemented):** download with Bearer into app cache, open in WebView, Download via system share sheet. Do not rely on WebView loading the remote URL with cookies.
+**Mobile client behaviour (implemented):** download with Bearer into app cache (`src/lib/source-document.ts`), open in WebView, Download via system share sheet. Do not rely on WebView loading the remote URL with cookies. Distinguish deploy 404 vs “no linked document” 404 in UI copy.
 
 **Reminder:** Completing the stop updates **transport** only. Office marks DO delivered / finishes RRI after qty checks.
 
@@ -378,7 +451,9 @@ Suggested UX: primary **View document**; secondary **Download**. Show a loading 
 | Which id for the PDF URL? | Nested `job.id` (transport job), **not** `source_id` (DO/RRI id). |
 | JSON vs PDF response? | All APIs return JSON except `source-document.pdf` → binary PDF. |
 | Why are RRI good/repair/damage/scrap often 0? | Warehouse fills those in ERP; driver uses **expected** qty for the run. |
-| When is there no PDF button? | `has_source_document_pdf === false` (standalone / no linked DO or RRI). |
+| When is there no PDF button? | No linked source: empty `delivery_order_nos`, no `document_no`, `has_source_document_pdf === false`, not DO/RRI type. |
+| Linked DO but PDF 404 “route could not be found”? | **Deploy** `source-document.pdf` on that host — the DO link is fine; the route is missing. |
+| Linked DO but PDF 404 “no linked … document”? | Morph `sourceable` missing/wrong on that transport job — fix data or seeder, not mobile. |
 
 #### Trip show — `GET .../trips/{driverTrip}`
 
@@ -530,9 +605,9 @@ If stop not yet arrived, backend **auto clock-in** then completes. Response incl
 5. **Stop detail** —
    - Document badge (`document_no` + job type); secondary linked DO nos when useful
    - Cargo from `job.line_items` (or `items_description`); read-only qty hint
-   - **View document** → in-app PDF when `has_source_document_pdf`
-   - Arrive / Complete (trip must be `in_progress`); Call / SMS / Navigate when actionable
-6. **Document PDF** — Bearer download to cache → WebView; Download via system share sheet.
+   - **View document** → in-app PDF when linked (flag / DO nos / DO·RRI type); else muted “No document PDF available”
+   - **Start job** / **Complete job** (trip must be `in_progress`); Call / SMS / Navigate when actionable
+6. **Document PDF** — Bearer download to cache → WebView; Download via share sheet; deploy-missing vs no-doc errors.
 7. **Job proofs** — gallery list/add/delete.
 
 Do not build on mobile: registration, forgot-password, ERP dispatcher, editing DO/RRI quantities.
@@ -685,9 +760,9 @@ While editing, you can track “all local toggles true”, but **do not** treat 
 - [x] Trip clock-out when all stops done
 - [x] Stop clock-in + complete with ≥1 photo
 - [x] Proof photo list/upload/delete
-- [x] Enriched job `line_items` + source document meta
-- [x] On-demand DO/RRI PDF (`GET .../source-document.pdf`)
-- [x] Configurable API base documented (`EXPO_PUBLIC_API_URL`)
+- [x] Enriched job `line_items` + source document meta (**ensure production payload includes meta fields**)
+- [x] On-demand DO/RRI PDF controller + route in repo (`GET .../source-document.pdf`)
+- [ ] **Production/staging host has PDF route deployed** (verified 2026-07-24: codespace host still missing — see deploy gap)
 
 ### Mobile client app — implemented
 
@@ -695,9 +770,9 @@ While editing, you can track “all local toggles true”, but **do not** treat 
 - [x] Trip inbox + trip detail (+ local completed-trip cache for same-day ended trips)
 - [x] Pre-trip checklist screen + Start-trip gate
 - [x] Trip clock-in / clock-out
-- [x] Stop clock-in + complete with ≥1 photo
+- [x] Stop clock-in (**Start job**) + complete (**Complete job**) with ≥1 photo; optional start-next prompt
 - [x] Cargo / line items on stop detail (`job.line_items` + document no.; DO/RRI fields)
-- [x] View DO/RRI PDF when `has_source_document_pdf` (Bearer + cache + WebView + Download)
+- [x] View DO/RRI PDF UI (Bearer + cache + WebView + Download); shows deploy vs no-doc errors
 - [x] Proof photo gallery
 - [x] Errors: 401 → re-login; 403 → message; 422 → field errors; PDF 404/403 → error UI
 - [x] `EXPO_PUBLIC_API_URL` (default `http://localhost:8000/api/v1`; Android emulator `http://10.0.2.2:8000/api/v1`)
@@ -706,6 +781,8 @@ While editing, you can track “all local toggles true”, but **do not** treat 
 
 ### Nice-to-have backend follow-ups
 
+- [ ] **Deploy** `GET …/source-document.pdf` to production/staging (blocking for driver PDF)
+- [ ] Ensure trip `job` payload always includes `document_no`, `source_type`, `source_id`, `has_source_document_pdf`
 - [ ] Include **today’s completed** trips in `GET /transport/trips` (assigned driver) so mobile can drop local cache
 - [ ] Emit ISO datetimes with `+08:00` (or documented true UTC) so clients need not special-case `Z`/`+00:00`
 - [ ] Push / assignment acknowledge API (when product needs it)

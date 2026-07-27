@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { API_BASE_URL } from '@/lib/config';
 import { clearToken, getToken } from '@/lib/token';
 import { ApiError } from '@/lib/types';
+import i18n from '@/i18n';
 
 export type CachedSourceDocument = {
   fileUri: string;
@@ -32,6 +33,17 @@ function fileNameFromDisposition(header: string | null, fallback: string): strin
   return sanitizeFileName(fallback);
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
 /**
  * Download DO/RRI PDF with Bearer auth into cache.
  * Remote URLs cannot be loaded in WebView (no Authorization header).
@@ -48,33 +60,58 @@ export async function fetchSourceDocumentToCache(
   const token = await getToken();
   const fallbackName = documentNo?.trim() || `job-${jobId}-document`;
   const tempUri = `${cacheDir}job-${jobId}-source-document.pdf`;
-  const url = `${API_BASE_URL}/transport/jobs/${jobId}/source-document.pdf`;
+  const path = `/transport/jobs/${jobId}/source-document.pdf`;
+  const url = `${API_BASE_URL}${path}`;
 
-  const result = await LegacyFS.downloadAsync(url, tempUri, {
+  const response = await fetch(url, {
+    method: 'GET',
     headers: {
       Accept: 'application/pdf',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
 
-  if (result.status === 401) {
+  if (__DEV__) {
+    console.log('[api]', 'GET', path, '→', response.status);
+  }
+
+  if (response.status === 401) {
     await clearToken();
     throw new ApiError('Please sign in again.', 401);
   }
 
-  if (result.status < 200 || result.status >= 300) {
-    throw new ApiError(
-      result.status === 404
-        ? 'Document not found for this job.'
-        : result.status === 403
-          ? 'You are not allowed to view this document.'
-          : 'Unable to load document.',
-      result.status,
-    );
+  if (!response.ok) {
+    const bodyText = await response.text();
+    let serverMessage = '';
+    try {
+      const json = JSON.parse(bodyText) as { message?: string };
+      if (typeof json.message === 'string') serverMessage = json.message.trim();
+    } catch {
+      // ignore
+    }
+
+    const routeMissing =
+      /route .* could not be found/i.test(serverMessage) ||
+      /source-document\.pdf could not be found/i.test(serverMessage);
+
+    const fallback = routeMissing
+      ? i18n.t('document.routeMissing')
+      : response.status === 404
+        ? i18n.t('document.notFound')
+        : response.status === 403
+          ? i18n.t('document.forbidden')
+          : i18n.t('document.unableLoad');
+
+    throw new ApiError(serverMessage && !routeMissing ? serverMessage : fallback, response.status);
   }
 
+  const buffer = await response.arrayBuffer();
+  await LegacyFS.writeAsStringAsync(tempUri, arrayBufferToBase64(buffer), {
+    encoding: LegacyFS.EncodingType.Base64,
+  });
+
   const fileName = fileNameFromDisposition(
-    result.headers?.['Content-Disposition'] ?? result.headers?.['content-disposition'] ?? null,
+    response.headers.get('Content-Disposition') ?? response.headers.get('content-disposition'),
     fallbackName,
   );
   const fileUri = `${cacheDir}${fileName}`;
