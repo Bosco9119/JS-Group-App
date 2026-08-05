@@ -17,7 +17,7 @@
     "map": "Peta",
     "notifications": "Pemberitahuan",
     "profile": "Profil",
-    "schedule": "Jadual",
+    "schedule": "Sejarah Perjalanan",
     "vehicleCheck": "Semakan Kenderaan",
     "documents": "Dokumen",
     "reports": "Laporan",
@@ -236,6 +236,17 @@
     "completedDialogBody": "Semua hentian pada {{tripNo}} selesai. Tamatkan perjalanan ini untuk menandakannya Selesai?",
     "endedTitle": "Perjalanan ditamatkan",
     "endedBody": "{{tripNo}} kini Selesai."
+  },
+  "history": {
+    "loading": "Memuatkan sejarah perjalanan…",
+    "loadingMore": "Memuatkan lagi…",
+    "emptyTitle": "Tiada sejarah perjalanan lagi",
+    "emptyMessage": "Perjalanan yang selesai dan dibatalkan dari hari sebelumnya akan muncul di sini.",
+    "unableLoad": "Tidak dapat memuatkan sejarah perjalanan.",
+    "presetToday": "Hari ini",
+    "presetYesterday": "Semalam",
+    "presetWeek": "7 hari lepas",
+    "presetMonth": "31 hari lepas"
   },
   "stops": {
     "title": "Hentian",

@@ -89,6 +89,11 @@ export function formatDateTime(value?: string | null): string {
   })}, ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
+/** Y-m-d for a local Date, e.g. for `/transport/trips/history?from=&to=` query params. */
+export function isoDateString(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
 export function formatTimeRange(start?: string | null, end?: string | null): string {
   if (!start && !end) return '—';
   if (start && end) return `${formatTime(start)} – ${formatTime(end)}`;

@@ -1,15 +1,11 @@
 import { apiJson, apiMultipart, appendImage } from '@/lib/api';
-import {
-  getCachedCompletedTrip,
-  mergeInboxWithCompletedCache,
-  rememberCompletedTrip,
-} from '@/lib/completed-trips-cache';
 import type {
   ChecklistItemInput,
   DriverTripSummary,
   LocalImage,
   LoginResponse,
   MeResponse,
+  PaginationMeta,
   ProofPhoto,
   VehicleChecklist,
 } from '@/lib/types';
@@ -30,20 +26,44 @@ export async function fetchMe() {
 }
 
 export async function fetchTrips() {
+  // Today's inbox — planned/in_progress/completed for today, plus any still-open overnight trip.
+  // The API includes today's completed trips directly now, no client-side cache needed.
   const response = await apiJson<{ data: DriverTripSummary[] }>('/transport/trips');
-  // Inbox API omits completed trips; merge today's locally cached clock-outs.
-  return mergeInboxWithCompletedCache(response.data);
+  return response.data;
 }
 
 export async function fetchTrip(tripId: number) {
-  try {
-    const response = await apiJson<{ data: DriverTripSummary }>(`/transport/trips/${tripId}`);
-    return response.data;
-  } catch (err) {
-    const cached = await getCachedCompletedTrip(tripId);
-    if (cached) return cached;
-    throw err;
-  }
+  const response = await apiJson<{ data: DriverTripSummary }>(`/transport/trips/${tripId}`);
+  return response.data;
+}
+
+export type TripHistoryStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled';
+
+export type TripHistoryParams = {
+  /** Y-m-d. Required — server rejects the request without it. */
+  from: string;
+  /** Y-m-d. Defaults to `from` server-side (single-day query) when omitted. */
+  to?: string;
+  status?: TripHistoryStatus;
+  page?: number;
+  perPage?: number;
+};
+
+/**
+ * Date-ranged, paginated, most-recent-first history of the driver's own past trips.
+ * `from` is required; the server caps the (from, to) span at 31 inclusive days and
+ * responds 422 outside that. `meta.from`/`meta.to` echo back the resolved range.
+ */
+export async function fetchTripHistory(params: TripHistoryParams) {
+  const query = new URLSearchParams({ from: params.from });
+  if (params.to) query.set('to', params.to);
+  if (params.status) query.set('status', params.status);
+  query.set('page', String(params.page ?? 1));
+  query.set('per_page', String(params.perPage ?? 20));
+
+  return apiJson<{ data: DriverTripSummary[]; meta: PaginationMeta }>(
+    `/transport/trips/history?${query.toString()}`,
+  );
 }
 
 export async function clockInTrip(tripId: number) {
@@ -57,7 +77,6 @@ export async function clockOutTrip(tripId: number) {
   const response = await apiJson<{ data: DriverTripSummary }>(`/transport/trips/${tripId}/clock-out`, {
     method: 'POST',
   });
-  await rememberCompletedTrip(response.data);
   return response.data;
 }
 

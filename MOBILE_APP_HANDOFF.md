@@ -11,13 +11,15 @@
 >
 > **DO/RRI on stops is live** — trip/job payloads include line items + source document meta; mobile opens on-demand PDF (Bearer → cache → WebView + share/download). Completing a stop does **not** mark the ERP Delivery Order / Rental Return as delivered/completed (office does that).
 >
-> **Action required on production (2026-07-24):** `GET /api/v1/transport/jobs/{id}/source-document.pdf` is implemented in the Laravel repo but **not deployed** on `jsgroup.codespaceaitechnology.com`. Drivers see linked DO numbers (e.g. TJ-2026070003 → DO26-07JSH004) but PDF open fails with Laravel “route could not be found”. **Deploy the route + controller before mobile PDF will work against that host.** See [Production deploy gap — source document PDF](#production-deploy-gap--source-document-pdf).
+> **Phase 2 — IMPLEMENTED (2026-08-05):** Trip & job **history** is live end-to-end (Laravel `GET /api/v1/transport/trips/history` + mobile Schedule screen, now labelled **Trip History**), matching the original 2026-07-28 ask: required `from`, optional `to` (defaults to `from`), optional `status`, 31-inclusive-day cap (`422` beyond that), `meta.from`/`meta.to` echoed back. One deliberate addition beyond the original spec: the `status` filter also accepts `cancelled` (the original enum only listed `completed`/`planned`/`in_progress`, which would have made cancelled trips unreachable via that filter). Mobile's Schedule screen uses day-list preset chips (Today / Yesterday / Last 7 days / Last 31 days) rather than a native date picker — no new native dependency was added. See [Phase 2 — Trip & job history](#phase-2--trip--job-history-backend-ask) for the full contract.
+>
+> **Action required on production (2026-07-24):** `GET /api/v1/transport/jobs/{id}/source-document.pdf` is implemented in the Laravel repo but **not deployed** on `onex.com.my`. Drivers see linked DO numbers (e.g. TJ-2026070003 → DO26-07JSH004) but PDF open fails with Laravel “route could not be found”. **Deploy the route + controller before mobile PDF will work against that host.** See [Production deploy gap — source document PDF](#production-deploy-gap--source-document-pdf).
 
 ---
 
 ## Production deploy gap — source document PDF
 
-Verified against live API (`EXPO_PUBLIC_API_URL=https://jsgroup.codespaceaitechnology.com/api/v1`) with `driver1@jsgroup.com`:
+Verified against live API (`EXPO_PUBLIC_API_URL=https://onex.com.my/api/v1`) with `driver1@jsgroup.com`:
 
 | Check | Result |
 |---|---|
@@ -94,6 +96,7 @@ Phase-1 driver UX is shipped in the Expo app. Gaps are only under **Blocked** / 
 | Proof gallery | Done | List / upload / delete |
 | i18n | Done | en / zh / ms |
 | Push / assignment ack | Stub only | **No API yet** |
+| Trip / job history | **Done** | `GET /transport/trips/history` (`from`/`to`/`status`/pagination, 31-day cap) + Schedule screen (relabelled **Trip History**, day-list presets, taps into existing trip detail) — see [Phase 2](#phase-2--trip--job-history-backend-ask) |
 | Documents drawer | Stub | PDF opens **from job/stop**, not drawer |
 
 ### Critical product rule (do not get this wrong)
@@ -125,7 +128,7 @@ Mobile displays API date/times as **wall-clock digits** from the string (same sp
 
 ## Known client workarounds (website should know)
 
-1. **Completed trips missing from inbox** — `GET /transport/trips` omits `completed`. Mobile merges a **local same-day cache** after clock-out so Home/Jobs can still show Completed. Prefer API to include **today’s completed** trips for the assigned driver when convenient.
+1. ~~**Completed trips missing from inbox**~~ — **Resolved 2026-08-05.** `GET /transport/trips` now includes today's `completed` trips directly; the local same-day cache workaround (`src/lib/completed-trips-cache.ts`) has been removed from mobile. Past days are available via `GET /transport/trips/history`.
 2. **PDF auth** — WebView cannot send Bearer headers. Mobile downloads `GET …/jobs/{id}/source-document.pdf` with Sanctum into cache, then opens locally (+ share sheet for Download).
 3. **PDF route missing on some hosts** — if Laravel returns “route could not be found”, mobile shows a deploy-oriented error (not “no DO linked”). See [Production deploy gap](#production-deploy-gap--source-document-pdf).
 4. **Expo Go Android** — push via `expo-notifications` is avoided on Expo Go Android; use a custom/dev client for real push later.
@@ -144,7 +147,8 @@ When changing transport APIs, keep mobile working:
 - [ ] Stop complete still does **not** auto-close DO/RRI
 - [ ] Checklist still exactly 15 keys; `can_clock_in` only when planned + all passed
 - [ ] Prefer datetime serialization that matches Malaysia wall clock (see timezone section)
-- [ ] Optional: return today’s `completed` trips in inbox so mobile can drop local cache
+- [x] Return today’s `completed` trips in inbox so mobile can drop local cache — done 2026-08-05
+- [x] Ship trip history endpoint — done 2026-08-05 as `GET /transport/trips/history` (`from`/`to`/`status`/pagination, 31-day cap — see [Phase 2 — Trip & job history](#phase-2--trip--job-history-backend-ask) for the full contract)
 
 ---
 
@@ -191,6 +195,7 @@ You are maintaining the **Laravel `/api/v1` driver API** consumed by the Expo dr
 
 | Driver need | Status |
 |---|---|
+| ~~**Trip / job history** (yesterday+, Schedule)~~ | **Done 2026-08-05** — see [Phase 2](#phase-2--trip--job-history-backend-ask) |
 | Push / assignment requests / dynamic insert acknowledge | **Missing API** |
 | Helper pairing, vehicle picker | **Not on mobile API** |
 | Edit DO/RRI line qty from the app | **Out of scope** (ERP only) |
@@ -295,7 +300,8 @@ Same `user` + `driver` shape. `403` if no linked driver. `401` if no/invalid tok
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/v1/transport/trips` | Today’s inbox for the linked driver |
+| `GET` | `/api/v1/transport/trips` | Today’s inbox for the linked driver (now also includes today’s `completed`) |
+| `GET` | `/api/v1/transport/trips/history` | **Live.** Paginated, most-recent-first, requires `from` (`to`/`status` optional, 31-day cap) — see history section |
 | `GET` | `/api/v1/transport/trips/{driverTrip}` | Trip detail with ordered stops + job summary + checklist |
 | `POST` | `/api/v1/transport/trips/{driverTrip}/clock-in` | Start trip (`planned` → `in_progress`) when checklist passed |
 | `POST` | `/api/v1/transport/trips/{driverTrip}/clock-out` | End trip (`in_progress` → `completed`) when all stops done |
@@ -309,16 +315,18 @@ Same `user` + `driver` shape. `403` if no linked driver. `401` if no/invalid tok
 | `POST` | `/api/v1/transport/stops/{tripStop}/clock-in` | Start job at stop (status → arrived; job → in_progress) |
 | `POST` | `/api/v1/transport/stops/{tripStop}/complete` | Complete stop with proof |
 
+> **Route order:** register `trips/history` **before** `trips/{driverTrip}` so `history` is not captured as an id.
+
 Authorization: assigned linked driver of the trip (`driver_app.access` + matching `driver_id`) may act. Trip show/clock-in/clock-out use `DriverTripPolicy`. Failed/cancelled jobs deny proof manage.
 
 #### Trip inbox — `GET .../trips`
 
 Returns `{ "data": [ trip payloads ] }` for the authenticated driver’s own trips where:
 
-- `planned_date` is today and status is `planned` or `in_progress`, **or**
+- `planned_date` is today and status is `planned`, `in_progress`, or `completed`, **or**
 - status is `in_progress` (covers overnight trips still open)
 
-**Mobile note:** completed trips are omitted. The app keeps a same-day local cache after clock-out. Prefer returning today’s `completed` trips for the assigned driver when the API is next updated.
+**Current behaviour (since 2026-08-05):** today's `completed` trips are included directly. Mobile no longer keeps a local cache after clock-out — `src/lib/completed-trips-cache.ts` was removed. Past days are not in this list; use `GET …/trips/history` instead.
 
 Each trip payload includes: `id`, `trip_no`, `status`, `status_label`, `planned_date`, `planned_start`, `planned_end`, `actual_start`, `actual_end`, `vehicle`, stop counts, nested `checklist` (`passed`, `checked_at`, `checked_by_driver_id`, `items[]`, `photo_urls[]`), `can_clock_in` (true only when planned **and** checklist `passed`), `all_stops_done`, `can_clock_out`, and `stops[]` with nested `job`:
 
@@ -338,6 +346,128 @@ Each trip payload includes: `id`, `trip_no`, `status`, `status_label`, `planned_
 | `latitude`, `longitude` | Site pin from stop-scoped `CustomerAddress`; `null` when missing |
 
 Built by `FormatsDriverTripPayload` (`app/Http/Controllers/Api/V1/Concerns/FormatsDriverTripPayload.php`). No portal URLs.
+
+---
+
+## Phase 2 — Trip & job history (backend ask)
+
+> **Status (2026-08-05): IMPLEMENTED — matches the spec below**, with one deliberate addition. Everything under this heading is the **original 2026-07-28 spec** and it reflects what actually shipped:
+>
+> - `GET /api/v1/transport/trips/history` — `from` required (`Y-m-d`), `to` optional (defaults to `from`), `page` (default 1), `per_page` (default 20, max 50), `status` optional. Range capped at 31 inclusive days — `422` on `to` when exceeded. Sorted `planned_date` desc, `planned_start` desc, `id` desc (tie-break).
+> - **Addition beyond the original spec:** the `status` filter accepts all four `TripStatus` values including `cancelled` — the original enum below (`completed`/`planned`/`in_progress`) would have left cancelled trips unreachable via this filter even though they're clearly historical.
+> - Response `meta` is `{ from, to, current_page, last_page, per_page, total }` — `from`/`to` echo the resolved (validated) range back to the caller, exactly as specced.
+> - Mobile Schedule screen (relabelled **Trip History**) uses day-list preset chips (Today / Yesterday / Last 7 days / Last 31 days) computing `from`/`to` client-side, then paginates within that range via infinite scroll. This satisfies the spec's "date picker **or** day list" — no native date-picker dependency was added.
+> - Trip show (`GET /transport/trips/{id}`) already worked for past/completed trips with no changes needed — confirmed by `DriverTripPolicy::view()` having no status gate, only ownership.
+> - Inbox today's-`completed` change (section A below) shipped exactly as asked.
+>
+> **Product goal:** Drivers can review **past trips and their jobs** (e.g. yesterday), not only today’s inbox. Native-only — no “View on website”.
+
+### Why a new endpoint (not only inbox)
+
+| Surface | Purpose | Date scope |
+|---|---|---|
+| `GET /transport/trips` (inbox) | Active day: planned / in progress / **today’s completed** | Today (+ overnight `in_progress`) |
+| `GET /transport/trips/history` | Browse past work | Explicit `from` / `to` (or single day) |
+
+Do not load weeks of history into the inbox. Keep Home/Jobs fast.
+
+### Job history vs trip history
+
+Domain is **trip → ordered stops → job**. Mobile job history is the jobs nested under past trips (`stops[].job`).
+
+- **Primary:** trip history list + existing `GET /transport/trips/{id}` for detail (stops, cargo, document meta, proofs still via proof endpoints / PDF).
+- **Optional later:** flat `GET /transport/jobs/history` only if product needs a Jobs-tab list without grouping by trip. **Not required for v1 of history** if trip show already returns nested jobs.
+
+### A) Inbox — include today’s completed
+
+Change `GET /api/v1/transport/trips` so the driver’s list also includes:
+
+- `planned_date` = **today** (`APP_TIMEZONE` = `Asia/Kuala_Lumpur`) **and** `status` = `completed`
+
+Keep existing rules for `planned` / `in_progress` / overnight. Same trip payload shape. No pagination required for inbox (still one day).
+
+### B) History — `GET /api/v1/transport/trips/history`
+
+| Concern | Detail |
+|---|---|
+| Auth | Bearer Sanctum `driver-app`; same as other transport routes |
+| Scope | **Only** trips where `driver_id` = linked driver. Never other drivers’ trips |
+| Method / path | `GET /api/v1/transport/trips/history` |
+| Route name (suggested) | `api.v1.transport.trips.history` |
+| Register before | `trips/{driverTrip}` so `history` is not treated as an id |
+
+#### Query parameters
+
+| Param | Required | Rules |
+|---|---|---|
+| `from` | **Yes** | Date `Y-m-d` (Malaysia calendar day). Filter on trip `planned_date` |
+| `to` | No | Date `Y-m-d`, default = `from`. Must be ≥ `from` |
+| `page` | No | Integer ≥ 1 (default 1) |
+| `per_page` | No | Integer 1–50 (default **20**) |
+| `status` | No | Optional filter: `completed`, `planned`, `in_progress`, or omit for all in range |
+
+**Range cap:** reject with `422` if (`to` − `from`) > **31** days (inclusive span). Message e.g. “Date range may not exceed 31 days.”
+
+**Empty result:** `200` with `data: []` (not 404).
+
+#### Success response
+
+Same **trip list payload** as inbox (`FormatsDriverTripPayload`), paginated:
+
+```json
+{
+  "data": [ /* trip payloads: id, trip_no, status, planned_date, vehicle, stops[]+job, checklist, … */ ],
+  "meta": {
+    "from": "2026-07-27",
+    "to": "2026-07-27",
+    "current_page": 1,
+    "per_page": 20,
+    "total": 3,
+    "last_page": 1
+  }
+}
+```
+
+**Sort:** `planned_date` DESC, then `planned_start` DESC (or `trip_no` DESC as tie-break).
+
+**Payload depth:** Prefer the **same nested `stops[].job`** (including `line_items`, document meta) as trip show/inbox so mobile can reuse cards. If that is too heavy for long ranges, a slimmer list row is acceptable **only if** `GET /transport/trips/{id}` still returns the full shape for drill-in — document which fields are omitted in the list.
+
+#### Errors
+
+| HTTP | When |
+|---|---|
+| `401` | Missing/invalid token |
+| `403` | No linked driver / no `driver_app.access` |
+| `422` | Invalid `from`/`to`, `to` < `from`, range > 31 days, bad `status` / pagination |
+
+### C) Trip show for past trips
+
+Existing `GET /api/v1/transport/trips/{driverTrip}` must keep working for **completed** (and other) trips assigned to this driver — including days before today — so history can open detail.
+
+| Action on a past / completed trip | Expected |
+|---|---|
+| `GET` trip show | `200` if assigned |
+| Clock-in / clock-out / checklist PUT / stop clock-in / stop complete | Still `422` (or current lock rules) — history is **read-only** for finished work |
+| Proof list / PDF view | Allowed if assigned (read); upload/delete only if product already allows on that job status |
+
+### D) Mobile plan (after API is live)
+
+| Screen | Behaviour |
+|---|---|
+| Schedule / History (replace Coming soon) | Day-list preset chips (Today / Yesterday / Last 7 days / Last 31 days) → `GET …/trips/history?from=&to=&page=&per_page=`, infinite scroll within the selected range |
+| Trip detail (from history) | Same screen; hide Start/End/checklist edit when not actionable |
+| Jobs tab / history | Derive jobs from trip `stops[]`; optional flat jobs API later |
+| Home / Jobs inbox | Use API today’s `completed`; remove `completed-trips-cache` workaround |
+
+### Website DoD (history)
+
+- [x] Inbox includes today’s `completed` for assigned driver — done 2026-08-05
+- [x] `GET /api/v1/transport/trips/history` with `from` / `to` / pagination / 31-day cap — done 2026-08-05, matches the spec exactly (plus `cancelled` added to the `status` filter enum, see status note above)
+- [x] Route registered **before** `{driverTrip}`; feature tests cover assigned-only scoping + date-range filtering + ordering + `status` filter + empty-range 200 + required-`from` 422 + range-cap 422 + 31-day-boundary 200 + `per_page` pagination + unauthenticated/no-driver 401/403 (`tests/Feature/DriverMobileTripInboxTest.php` in the Laravel repo)
+- [x] Trip show still returns full payload for past completed trips — confirmed, no change was needed
+- [x] No portal URLs; no other drivers’ data — confirmed (`where('driver_id', ...)` scoping, same pattern as inbox)
+
+---
 
 ### Jobs, DO/RRI, and PDF (read this before building stop UI)
 
@@ -609,6 +739,7 @@ If stop not yet arrived, backend **auto clock-in** then completes. Response incl
    - **Start job** / **Complete job** (trip must be `in_progress`); Call / SMS / Navigate when actionable
 6. **Document PDF** — Bearer download to cache → WebView; Download via share sheet; deploy-missing vs no-doc errors.
 7. **Job proofs** — gallery list/add/delete.
+8. **Schedule / History** — **Done 2026-08-05.** Day-list preset chips call `GET …/trips/history?from=&to=` (infinite scroll within the selected range); taps into the existing trip detail screen read-only (clock-in/out buttons naturally don't render since `can_clock_in`/`can_clock_out` are false on finished trips).
 
 Do not build on mobile: registration, forgot-password, ERP dispatcher, editing DO/RRI quantities.
 
@@ -779,10 +910,27 @@ While editing, you can track “all local toggles true”, but **do not** treat 
 - [x] UI copy does **not** treat stop complete as DO delivered / RRI completed
 - [x] Datetime display uses Malaysia wall-clock digits (avoids +8h vs website)
 
+### Phase 2 — Trip & job history (backend then mobile) — DONE 2026-08-05
+
+See full contract: [Phase 2 — Trip & job history](#phase-2--trip--job-history-backend-ask).
+
+#### Backend (Laravel) — done
+
+- [x] Inbox `GET /transport/trips` includes **today’s `completed`** for assigned driver
+- [x] `GET /api/v1/transport/trips/history?from=&to=&status=&page=&per_page=` (required `from`, 31-day cap, assigned-only) — matches the spec, plus `cancelled` added to the `status` enum (see status note in the Phase 2 section)
+- [x] Trip show works for past completed trips (read-only actions stay locked) — confirmed, no change needed
+- [x] Feature tests (`tests/Feature/DriverMobileTripInboxTest.php`) — deploy to staging/production still pending on the team's normal release process
+
+#### Mobile (Expo) — done
+
+- [x] Schedule / History screen (replaced Coming soon) — `src/app/(app)/schedule.tsx`, relabelled **Trip History** in the drawer
+- [x] Call history endpoint; open trip/stop detail read-only when not actionable — reuses existing `/(app)/trips/[id]` screen unmodified
+- [x] Drop local `completed-trips-cache` once inbox returns today’s completed — `src/lib/completed-trips-cache.ts` deleted, `driver-api.ts` simplified
+
 ### Nice-to-have backend follow-ups
 
 - [ ] **Deploy** `GET …/source-document.pdf` to production/staging (blocking for driver PDF)
 - [ ] Ensure trip `job` payload always includes `document_no`, `source_type`, `source_id`, `has_source_document_pdf`
-- [ ] Include **today’s completed** trips in `GET /transport/trips` (assigned driver) so mobile can drop local cache
 - [ ] Emit ISO datetimes with `+08:00` (or documented true UTC) so clients need not special-case `Z`/`+00:00`
 - [ ] Push / assignment acknowledge API (when product needs it)
+- [ ] Optional flat `GET /transport/jobs/history` if Jobs tab needs ungrouped past jobs

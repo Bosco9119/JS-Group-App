@@ -17,7 +17,7 @@
     "map": "Map",
     "notifications": "Notifications",
     "profile": "Profile",
-    "schedule": "Schedule",
+    "schedule": "Trip History",
     "vehicleCheck": "Vehicle Check",
     "documents": "Documents",
     "reports": "Reports",
@@ -236,6 +236,17 @@
     "completedDialogBody": "All stops on {{tripNo}} are done. End this trip to mark it Completed?",
     "endedTitle": "Trip ended",
     "endedBody": "{{tripNo}} is now Completed."
+  },
+  "history": {
+    "loading": "Loading trip history…",
+    "loadingMore": "Loading more…",
+    "emptyTitle": "No trip history yet",
+    "emptyMessage": "Completed and cancelled trips from previous days will appear here.",
+    "unableLoad": "Unable to load trip history.",
+    "presetToday": "Today",
+    "presetYesterday": "Yesterday",
+    "presetWeek": "Last 7 days",
+    "presetMonth": "Last 31 days"
   },
   "stops": {
     "title": "Stop",

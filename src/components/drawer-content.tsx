@@ -25,7 +25,7 @@ export function AppDrawerContent(props: any) {
   const { driver, user, logout } = useAuth();
 
   const items: Item[] = [
-    { key: 'schedule', label: t('nav.schedule'), icon: 'calendar-outline', href: '/(app)/schedule' },
+    { key: 'schedule', label: t('nav.schedule'), icon: 'time-outline', href: '/(app)/schedule' },
     {
       key: 'vehicle',
       label: t('nav.vehicleCheck'),

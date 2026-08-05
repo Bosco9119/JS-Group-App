@@ -140,6 +140,15 @@ export type ProofPhoto = {
   longitude: number | null;
 };
 
+export type PaginationMeta = {
+  from: string;
+  to: string;
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+};
+
 export type LoginResponse = {
   token: string;
   token_type: string;

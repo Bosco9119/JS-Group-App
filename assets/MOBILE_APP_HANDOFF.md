@@ -8,7 +8,7 @@
 >
 > **DO/RRI + PDF are live in this Laravel repo** — nested job includes `document_no` / `has_source_document_pdf` / rich `line_items`; open PDF via `GET …/source-document.pdf`. Completing a stop does **not** mark ERP DO/RRI delivered/completed. See **“Jobs, DO/RRI, and PDF”**.
 >
-> **Production host gap:** if `jsgroup.codespaceaitechnology.com` still returns “route could not be found” for the PDF URL, deploy this branch (controller + route already in repo).
+> **Production host gap:** if `onex.com.my` still returns “route could not be found” for the PDF URL, deploy this branch (controller + route already in repo).
 
 ## Source document PDF (backend — this Laravel repo)
 

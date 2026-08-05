@@ -17,7 +17,7 @@
     "map": "地图",
     "notifications": "通知",
     "profile": "我的",
-    "schedule": "日程",
+    "schedule": "行程记录",
     "vehicleCheck": "车辆检查",
     "documents": "证件",
     "reports": "报表",
@@ -236,6 +236,17 @@
     "completedDialogBody": "{{tripNo}} 的所有站点已完成。是否结束行程并标记为已完成？",
     "endedTitle": "行程已结束",
     "endedBody": "{{tripNo}} 现为已完成。"
+  },
+  "history": {
+    "loading": "正在加载行程记录…",
+    "loadingMore": "正在加载更多…",
+    "emptyTitle": "暂无行程记录",
+    "emptyMessage": "以往完成或取消的行程将显示在这里。",
+    "unableLoad": "无法加载行程记录。",
+    "presetToday": "今天",
+    "presetYesterday": "昨天",
+    "presetWeek": "最近7天",
+    "presetMonth": "最近31天"
   },
   "stops": {
     "title": "站点",
