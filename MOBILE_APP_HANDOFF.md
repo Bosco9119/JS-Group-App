@@ -27,7 +27,7 @@ Verified against live API (`EXPO_PUBLIC_API_URL=https://onex.com.my/api/v1`) wit
 |---|---|
 | Trip job `TJ-2026070003` (`job.id` = **52**) | Present; `job_type` = `rental_return` |
 | `delivery_order_nos` | `["DO26-07JSH004"]` — **document is linked** |
-| Nested meta: `document_no`, `document_status`, `source_type`, `source_id`, `has_source_document_pdf` | **Missing** from live trip payload (local Laravel `FormatsDriverTripPayload` may also still omit these — add them) |
+| Nested meta: `document_no`, `document_status`, `source_type`, `source_id`, `has_source_document_pdf` | **Missing** from the *live* trip payload — but present in Laravel `main` (`FormatsDriverTripPayload::jobPayload`). Deploy gap only, no code change needed. |
 | `GET /api/v1/transport/jobs/52/source-document.pdf` | **404** — `"The route api/v1/transport/jobs/52/source-document.pdf could not be found."` |
 
 This is **not** “job has no DO/RRI”. The morph/link exists (cargo + `delivery_order_nos`). Production simply does not register the PDF route yet.
@@ -58,7 +58,7 @@ Accept: application/pdf
 
 Expect `200` + `Content-Type: application/pdf` (not a JSON “route could not be found”).
 
-4. **Also ship nested job meta** in `FormatsDriverTripPayload::jobPayload` (mobile + handoff already expect these):
+4. **Nested job meta — already implemented, ships with the same deploy.** `FormatsDriverTripPayload::jobPayload` already returns all five fields; they are absent from production only because the host is running older code. Nothing to write, just verify after deploy:
 
 | Field | Rule |
 |---|---|
@@ -68,7 +68,7 @@ Expect `200` + `Content-Type: application/pdf` (not a JSON “route could not be
 | `document_status` | source status or `null` |
 | `has_source_document_pdf` | `true` when source is DO or RRI |
 
-Until (4) is live, mobile still shows **View document** when `delivery_order_nos` is non-empty or job type is delivery / rental return (fallback). Prefer the explicit flag once deployed.
+Until the deploy lands, mobile still shows **View document** when `delivery_order_nos` is non-empty or job type is delivery / rental return (fallback). Prefer the explicit flag once deployed.
 
 ### Error semantics mobile already handles
 
@@ -967,7 +967,7 @@ See full contract: [Phase 2 — Trip & job history](#phase-2--trip--job-history-
 ### Nice-to-have backend follow-ups
 
 - [ ] **Deploy** `GET …/source-document.pdf` to production/staging (blocking for driver PDF)
-- [ ] Ensure trip `job` payload always includes `document_no`, `source_type`, `source_id`, `has_source_document_pdf`
+- [x] Ensure trip `job` payload always includes `document_no`, `source_type`, `source_id`, `has_source_document_pdf` — implemented in `FormatsDriverTripPayload::jobPayload`; reaches production with the deploy above
 - [ ] Emit ISO datetimes with `+08:00` (or documented true UTC) so clients need not special-case `Z`/`+00:00`
 - [ ] Push / assignment acknowledge API (when product needs it)
 - [ ] Optional flat `GET /transport/jobs/history` if Jobs tab needs ungrouped past jobs

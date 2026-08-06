@@ -46,6 +46,9 @@ export default function StopDetailScreen() {
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [receivedBy, setReceivedBy] = useState('');
   const [notes, setNotes] = useState('');
+  // One id per POD attempt, reused across retries so a failed upload that actually
+  // reached the server is deduped instead of storing the photos twice.
+  const [clientUuid, setClientUuid] = useState(createClientUuid);
 
   const tripActive = tripStatus === 'in_progress';
 
@@ -55,6 +58,7 @@ export default function StopDetailScreen() {
     setSignatureOpen(false);
     setReceivedBy('');
     setNotes('');
+    setClientUuid(createClientUuid());
   }
 
   const load = useCallback(async () => {
@@ -160,7 +164,7 @@ export default function StopDetailScreen() {
         signature,
         proofReceivedBy: receivedBy.trim() || undefined,
         notes: notes.trim() || undefined,
-        clientUuid: createClientUuid(),
+        clientUuid,
         latitude: coords?.latitude,
         longitude: coords?.longitude,
         takenAt: new Date().toISOString(),
