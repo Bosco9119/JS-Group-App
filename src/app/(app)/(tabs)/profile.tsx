@@ -37,7 +37,6 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const items: MenuItem[] = [
-    { label: t('profile.driverInfo'), icon: 'id-card-outline', href: '/(app)/help' },
     { label: t('profile.vehicleInfo'), icon: 'car-outline', href: '/(app)/vehicle-check' },
     { label: t('nav.documents'), icon: 'document-text-outline', href: '/(app)/documents' },
     { label: t('nav.settings'), icon: 'settings-outline', href: '/(app)/settings' },
