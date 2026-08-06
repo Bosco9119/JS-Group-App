@@ -12,6 +12,8 @@ export type DriverProfile = {
   status: string;
   status_label: string;
   photo_url: string | null;
+  license_number: string | null;
+  license_expiry: string | null;
 };
 
 export type VehicleSummary = {

@@ -75,7 +75,18 @@
   "profile": {
     "driverInfo": "Driver Info",
     "vehicleInfo": "Vehicle Info",
-    "about": "About"
+    "about": "About",
+    "photoTitle": "Profile photo",
+    "changePhoto": "Take / choose photo",
+    "removePhoto": "Remove photo",
+    "unableUploadPhoto": "Unable to update your profile photo.",
+    "unableRemovePhoto": "Unable to remove your profile photo.",
+    "driverDetailsTitle": "Driver details",
+    "icNumber": "IC number",
+    "phone": "Phone",
+    "licenseNumber": "License number",
+    "licenseExpiry": "License expiry",
+    "licenseExpired": "expired"
   },
   "comingSoon": {
     "body": "This section will connect to the ERP when the mobile API is available.",

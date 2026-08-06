@@ -3,12 +3,12 @@ import { DrawerContentScrollView } from 'expo-router/drawer';
 import { useRouter } from 'expo-router';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
+import { DriverAvatar } from '@/components/driver-avatar';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useAppTranslation } from '@/context/locale';
 import { useTheme } from '@/hooks/use-theme';
-import { initialsFromName } from '@/lib/format';
 
 type Item = {
   key: string;
@@ -55,8 +55,8 @@ export function AppDrawerContent(props: any) {
           resizeMode="contain"
           accessibilityLabel="JS Group"
         />
-        <View style={[styles.avatar, { backgroundColor: theme.accent }]}>
-          <ThemedText style={styles.avatarText}>{initialsFromName(driver?.name ?? user?.name)}</ThemedText>
+        <View style={styles.avatar}>
+          <DriverAvatar photoUrl={driver?.photo_url} name={driver?.name ?? user?.name} size={56} />
         </View>
         <ThemedText type="smallBold">{driver?.name ?? user?.name ?? 'Driver'}</ThemedText>
       </View>
@@ -113,14 +113,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: Spacing.two,
   },
-  avatarText: { color: '#fff', fontWeight: '700', fontSize: 18 },
   menu: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.two },
   menuItem: {
     flexDirection: 'row',

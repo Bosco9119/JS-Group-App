@@ -75,7 +75,18 @@
   "profile": {
     "driverInfo": "Maklumat Pemandu",
     "vehicleInfo": "Maklumat Kenderaan",
-    "about": "Perihal"
+    "about": "Perihal",
+    "photoTitle": "Foto profil",
+    "changePhoto": "Ambil / pilih foto",
+    "removePhoto": "Buang foto",
+    "unableUploadPhoto": "Tidak dapat mengemas kini foto profil anda.",
+    "unableRemovePhoto": "Tidak dapat membuang foto profil anda.",
+    "driverDetailsTitle": "Butiran pemandu",
+    "icNumber": "No. Kad Pengenalan",
+    "phone": "Telefon",
+    "licenseNumber": "No. lesen",
+    "licenseExpiry": "Tarikh luput lesen",
+    "licenseExpired": "tamat tempoh"
   },
   "comingSoon": {
     "body": "Bahagian ini akan disambungkan ke ERP apabila API mudah alih tersedia.",

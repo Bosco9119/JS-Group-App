@@ -14,6 +14,8 @@
 > **Phase 2 — IMPLEMENTED (2026-08-05):** Trip & job **history** is live end-to-end (Laravel `GET /api/v1/transport/trips/history` + mobile Schedule screen, now labelled **Trip History**), matching the original 2026-07-28 ask: required `from`, optional `to` (defaults to `from`), optional `status`, 31-inclusive-day cap (`422` beyond that), `meta.from`/`meta.to` echoed back. One deliberate addition beyond the original spec: the `status` filter also accepts `cancelled` (the original enum only listed `completed`/`planned`/`in_progress`, which would have made cancelled trips unreachable via that filter). Mobile's Schedule screen uses day-list preset chips (Today / Yesterday / Last 7 days / Last 31 days) rather than a native date picker — no new native dependency was added. See [Phase 2 — Trip & job history](#phase-2--trip--job-history-backend-ask) for the full contract.
 >
 > **Action required on production (2026-07-24):** `GET /api/v1/transport/jobs/{id}/source-document.pdf` is implemented in the Laravel repo but **not deployed** on `onex.com.my`. Drivers see linked DO numbers (e.g. TJ-2026070003 → DO26-07JSH004) but PDF open fails with Laravel “route could not be found”. **Deploy the route + controller before mobile PDF will work against that host.** See [Production deploy gap — source document PDF](#production-deploy-gap--source-document-pdf).
+>
+> **Driver profile photo — IMPLEMENTED (2026-08-06):** `driver` payload (`/auth/login`, `/auth/me`, and the two new photo endpoints below) now also includes `license_number`/`license_expiry`. New `POST /api/v1/profile/photo` (multipart, field `photo`) and `DELETE /api/v1/profile/photo` let a driver set/replace/remove their own photo from the app; server normalizes to JPEG (EXIF-corrected, max 800×800) and stores it on the `public` disk. Fixed a pre-existing bug where `driver.photo_url` resolved against the wrong storage disk and was effectively always broken. Mobile: new `DriverAvatar` component (photo, falls back to the original initials-circle design when `photo_url` is null) used on both the Profile screen (tap avatar → take/choose/remove) and the drawer header; Profile screen also now shows IC number, phone, license number, and license expiry (with an expired-license highlight).
 
 ---
 
@@ -252,6 +254,8 @@ Job types (ERP): `delivery`, `rental_return`, `warehouse_transfer`, `standalone`
 | `POST` | `/api/v1/auth/login` | Public, throttle `6,1` | Issue Bearer token |
 | `POST` | `/api/v1/auth/logout` | Bearer | Revoke **current** token |
 | `GET` | `/api/v1/auth/me` | Bearer | Current user + driver profile |
+| `POST` | `/api/v1/profile/photo` | Bearer, throttle `driver-api-uploads` | Upload/replace the driver's own profile photo |
+| `DELETE` | `/api/v1/profile/photo` | Bearer | Remove the driver's own profile photo |
 
 #### `POST /api/v1/auth/login`
 
@@ -275,7 +279,9 @@ Success `200`:
     "phone": "...",
     "status": "active",
     "status_label": "Active",
-    "photo_url": null
+    "photo_url": null,
+    "license_number": "...",
+    "license_expiry": "2027-01-01"
   }
 }
 ```
@@ -293,6 +299,20 @@ Same `user` + `driver` shape. `403` if no linked driver. `401` if no/invalid tok
 ```json
 { "message": "Logged out." }
 ```
+
+#### `POST /api/v1/profile/photo` — upload/replace own photo
+
+Multipart, field `photo` (image, max 5 MB — same limit as the admin upload). Server normalizes to JPEG (EXIF-orientation corrected, resized to fit within 800×800), stores it, deletes the previous photo file if one existed, and returns the updated driver payload (same shape as `/auth/me`'s `driver`):
+
+```json
+{ "driver": { "id": 1, "name": "...", "...": "...", "photo_url": "https://.../storage/drivers/photos/xxxx.jpg" } }
+```
+
+`422` with a `photo` field error if the file isn't a valid image or exceeds 5 MB. `403` if the token's user has no linked driver.
+
+#### `DELETE /api/v1/profile/photo` — remove own photo
+
+No body. Deletes the stored file and nulls `photo_path`; returns the updated driver payload with `photo_url: null`. Mobile should fall back to the initials-circle avatar when `photo_url` is null — never a broken image icon.
 
 ---
 
@@ -926,6 +946,23 @@ See full contract: [Phase 2 — Trip & job history](#phase-2--trip--job-history-
 - [x] Schedule / History screen (replaced Coming soon) — `src/app/(app)/schedule.tsx`, relabelled **Trip History** in the drawer
 - [x] Call history endpoint; open trip/stop detail read-only when not actionable — reuses existing `/(app)/trips/[id]` screen unmodified
 - [x] Drop local `completed-trips-cache` once inbox returns today’s completed — `src/lib/completed-trips-cache.ts` deleted, `driver-api.ts` simplified
+
+### Driver profile photo & license info (backend then mobile) — DONE 2026-08-06
+
+#### Backend (Laravel) — done
+
+- [x] `driver` payload (login/me) adds `license_number`, `license_expiry` (`Y-m-d`)
+- [x] Fixed `Driver::photo_url` to resolve against the `public` disk (was silently broken)
+- [x] `POST /api/v1/profile/photo` — upload/replace own photo (image, max 5MB, resized/re-encoded to JPEG ≤800×800 via `DriverPhotoService`)
+- [x] `DELETE /api/v1/profile/photo` — remove own photo, falls back to initials avatar
+- [x] Audit logging (`Transport` channel, `driver_photo_updated` / `driver_photo_removed`) with explicit `causedBy()`
+- [x] Feature tests: `tests/Feature/DriverMobileAuthTest.php`
+
+#### Mobile (Expo) — done
+
+- [x] Profile screen shows driver details card (IC number, phone, license number, license expiry — flags expired in red)
+- [x] Tap avatar → change/remove photo (camera or library, 1:1 crop) via `pickProfilePhoto()` + `uploadDriverPhoto()` / `removeDriverPhoto()`
+- [x] `DriverAvatar` shared component (photo with `expo-image`, falls back to initials circle when no photo) used on profile screen and drawer
 
 ### Nice-to-have backend follow-ups
 

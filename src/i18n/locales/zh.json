@@ -75,7 +75,18 @@
   "profile": {
     "driverInfo": "司机信息",
     "vehicleInfo": "车辆信息",
-    "about": "关于"
+    "about": "关于",
+    "photoTitle": "个人照片",
+    "changePhoto": "拍摄 / 选择照片",
+    "removePhoto": "移除照片",
+    "unableUploadPhoto": "无法更新您的个人照片。",
+    "unableRemovePhoto": "无法移除您的个人照片。",
+    "driverDetailsTitle": "司机详情",
+    "icNumber": "身份证号码",
+    "phone": "电话",
+    "licenseNumber": "驾照号码",
+    "licenseExpiry": "驾照到期日",
+    "licenseExpired": "已过期"
   },
   "comingSoon": {
     "body": "此功能将在移动端 API 可用后接入 ERP。",

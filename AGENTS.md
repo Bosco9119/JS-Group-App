@@ -25,6 +25,7 @@ That document includes:
 - Datetime/timezone wall-clock display (`Asia/Kuala_Lumpur`)
 - Backend follow-ups (deploy PDF route, job meta fields, ISO offsets, push)
 - **Phase 2 — Trip & job history — DONE (2026-08-05), matches the original spec.** Inbox includes today's `completed`; `GET …/trips/history` requires `from` (Y-m-d), accepts optional `to` (defaults to `from`) and `status`, caps the range at 31 inclusive days (`422` beyond that), and echoes the resolved `from`/`to` in `meta`. Schedule screen (`src/app/(app)/schedule.tsx`, drawer label **Trip History**) is a day-list preset picker (Today / Yesterday / Last 7 days / Last 31 days — no native date-picker dependency was added) wired against the live endpoint.
+- **Driver profile photo & license info — DONE (2026-08-06).** `driver` payload (login/me/photo endpoints) now includes `license_number`/`license_expiry`. New `POST`/`DELETE /api/v1/profile/photo` (multipart upload, max 5MB) let a driver set/replace/remove their own photo — `uploadDriverPhoto()` / `removeDriverPhoto()` in `src/lib/driver-api.ts`, picker via `pickProfilePhoto()` in `src/lib/media.ts`. Shared `DriverAvatar` component (`src/components/driver-avatar.tsx`) renders the photo via `expo-image` and falls back to the original initials-circle design when `photo_url` is `null` — used on the Profile screen (tap avatar → change/remove) and the drawer header. Profile screen also shows IC number, phone, license number, and license expiry (flags expired in red).
 
 ## Local config
 
@@ -41,3 +42,4 @@ That document includes:
 - PDF: Bearer download to cache then WebView (`src/lib/source-document.ts`); never load authenticated PDF URLs directly in WebView.
 - Dates/times: use `src/lib/format.ts` (wall-clock digits — do not reintroduce `Date` TZ shifts that turn 09:00 into 17:00).
 - Trip/job history: implemented — see the Phase 2 status note above. `fetchTripHistory()` in `src/lib/driver-api.ts`; do not reintroduce `completed-trips-cache.ts` (deleted, no longer needed now the inbox returns today's completed trips directly).
+- Driver photo: always render avatars via the shared `DriverAvatar` component (not a hand-rolled initials `View`) so the photo-vs-fallback logic stays in one place; `license_number`/`license_expiry` are admin-managed/read-only on mobile.

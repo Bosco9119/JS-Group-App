@@ -92,6 +92,41 @@ export async function pickProofPhotos(): Promise<LocalImage[]> {
   return libraryResult.assets.map((asset, index) => toLocalImage(asset, `proof-${index}`));
 }
 
+/** Single square-cropped photo for the driver's own profile avatar. Camera first, library on cancel. */
+export async function pickProfilePhoto(): Promise<LocalImage | null> {
+  const { camera, media } = await ensureCameraAndMediaPermissions();
+
+  if (!camera || !media) {
+    const message = i18n.t('permissions.cameraMediaDeniedBody');
+    promptOpenSettings(message);
+    throw new Error(message);
+  }
+
+  const cameraResult = await ImagePicker.launchCameraAsync({
+    mediaTypes: ['images'],
+    quality: 0.8,
+    allowsEditing: true,
+    aspect: [1, 1],
+  });
+
+  if (!cameraResult.canceled && cameraResult.assets?.length) {
+    return toLocalImage(cameraResult.assets[0], 'profile');
+  }
+
+  const libraryResult = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    quality: 0.8,
+    allowsEditing: true,
+    aspect: [1, 1],
+  });
+
+  if (libraryResult.canceled || !libraryResult.assets?.length) {
+    return null;
+  }
+
+  return toLocalImage(libraryResult.assets[0], 'profile');
+}
+
 export async function getOptionalCoords(): Promise<{ latitude: number; longitude: number } | null> {
   const permission = await Location.requestForegroundPermissionsAsync();
   if (!permission.granted) {

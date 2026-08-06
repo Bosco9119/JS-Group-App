@@ -1,6 +1,7 @@
 import { apiJson, apiMultipart, appendImage } from '@/lib/api';
 import type {
   ChecklistItemInput,
+  DriverProfile,
   DriverTripSummary,
   LocalImage,
   LoginResponse,
@@ -23,6 +24,20 @@ export async function logout() {
 
 export async function fetchMe() {
   return apiJson<MeResponse>('/auth/me');
+}
+
+/** Replaces the signed-in driver's own profile photo (image, max 5 MB). */
+export async function uploadDriverPhoto(photo: LocalImage) {
+  const formData = new FormData();
+  await appendImage(formData, 'photo', photo);
+  const response = await apiMultipart<{ driver: DriverProfile }>('/profile/photo', formData);
+  return response.driver;
+}
+
+/** Removes the signed-in driver's own profile photo, reverting to the initials fallback. */
+export async function removeDriverPhoto() {
+  const response = await apiJson<{ driver: DriverProfile }>('/profile/photo', { method: 'DELETE' });
+  return response.driver;
 }
 
 export async function fetchTrips() {
